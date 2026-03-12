@@ -1,0 +1,102 @@
+# ============================================================
+# LifeLedger — Tax Profiles
+# Jurisdiction-specific tax configuration.
+# Override any value here; falls back to lifeledger_config.yaml
+# ============================================================
+
+profiles:
+  - id: "uk_standard"
+    name: "UK Standard — PAYE"
+    jurisdiction: "UK"
+    description: "Standard UK income tax + NI for employed individuals"
+    income_tax_bands:
+      - {limit: 12570,  rate: 0.00, label: "Personal Allowance"}
+      - {limit: 50270,  rate: 0.20, label: "Basic Rate"}
+      - {limit: 125140, rate: 0.40, label: "Higher Rate"}
+      - {limit: null,   rate: 0.45, label: "Additional Rate"}
+    ni_bands:
+      - {limit: 12570,  rate: 0.00}
+      - {limit: 50270,  rate: 0.12}
+      - {limit: null,   rate: 0.02}
+    personal_allowance_taper:
+      threshold: 100000
+      taper_rate: 0.50          # £1 reduction per £2 earned over threshold
+    cgt:
+      annual_exempt: 3000
+      basic_rate: 0.10
+      higher_rate: 0.20
+    iht:
+      nil_rate_band: 325000
+      residence_nil_rate_band: 175000
+      rate: 0.40
+      seven_year_rule: true
+    allowances:
+      isa_limit: 20000
+      sipp_limit: 60000
+      lisa_limit: 4000
+      pension_annual_allowance: 60000
+
+  - id: "uk_self_employed"
+    name: "UK Self-Employed / Sole Trader"
+    jurisdiction: "UK"
+    description: "UK income tax + Class 2/4 NI for self-employed"
+    income_tax_bands:
+      - {limit: 12570,  rate: 0.00, label: "Personal Allowance"}
+      - {limit: 50270,  rate: 0.20, label: "Basic Rate"}
+      - {limit: 125140, rate: 0.40, label: "Higher Rate"}
+      - {limit: null,   rate: 0.45, label: "Additional Rate"}
+    ni_bands:                   # Class 4
+      - {limit: 12570,  rate: 0.00}
+      - {limit: 50270,  rate: 0.09}
+      - {limit: null,   rate: 0.02}
+    class2_weekly: 3.45         # Class 2 NI (if profits > small profits threshold)
+    small_profits_threshold: 12570
+    cgt:
+      annual_exempt: 3000
+      basic_rate: 0.10
+      higher_rate: 0.20
+    allowances:
+      isa_limit: 20000
+      sipp_limit: 60000
+
+  - id: "us_federal_single"
+    name: "US Federal — Single Filer"
+    jurisdiction: "US_federal"
+    description: "US federal income tax, single filing status"
+    income_tax_bands:
+      - {limit: 11600,  rate: 0.10}
+      - {limit: 47150,  rate: 0.12}
+      - {limit: 100525, rate: 0.22}
+      - {limit: 191950, rate: 0.24}
+      - {limit: 243725, rate: 0.32}
+      - {limit: 609350, rate: 0.35}
+      - {limit: null,   rate: 0.37}
+    standard_deduction: 14600
+    fica:
+      social_security_rate: 0.062
+      social_security_wage_base: 168600
+      medicare_rate: 0.0145
+      additional_medicare_rate: 0.009
+      additional_medicare_threshold: 200000
+    allowances:
+      roth_ira_limit: 7000
+      traditional_401k_limit: 23000
+      hsa_individual: 4150
+    capital_gains:
+      long_term_rates:
+        - {limit: 47025,  rate: 0.00}
+        - {limit: 518900, rate: 0.15}
+        - {limit: null,   rate: 0.20}
+
+  - id: "generic"
+    name: "Generic / Configurable"
+    jurisdiction: "generic"
+    description: "Fully configurable for any jurisdiction"
+    income_tax_bands:
+      - {limit: null, rate: 0.20, label: "Flat Rate"}
+    ni_bands: []
+    cgt:
+      annual_exempt: 0
+      basic_rate: 0.15
+      higher_rate: 0.15
+    allowances: {}

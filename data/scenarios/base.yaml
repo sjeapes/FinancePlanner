@@ -1,0 +1,317 @@
+# ============================================================
+# LifeLedger — Base Scenario
+# Scenario: "Current Plan"
+# All amounts in GBP unless currency specified.
+# ============================================================
+
+scenario:
+  id: "base"
+  name: "Current Plan"
+  description: "Baseline projection — retire at 60, current savings rates"
+  is_base: true
+  created_at: "2025-03-08"
+  modified_at: "2025-03-08"
+  colour: "#0e9aad"           # used in UI graph overlays
+
+# ── People ───────────────────────────────────────────────────
+people:
+  - id: "james"
+    name: "James"
+    date_of_birth: "1987-06-15"
+    retirement_age: 60
+    life_expectancy: 90
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 22
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20   # current full new state pension (2024/25)
+      deferral_years: 0
+
+  - id: "sarah"
+    name: "Sarah"
+    date_of_birth: "1989-09-22"
+    retirement_age: 60
+    life_expectancy: 92
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 18
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0
+
+# ── Income Sources ───────────────────────────────────────────
+income_sources:
+  - id: "james_salary"
+    name: "Software Engineering Salary"
+    person_id: "james"
+    gross_annual: 95000
+    currency: "GBP"
+    tax_treatment: "PAYE"
+    start_date: "2018-03-01"
+    end_date: "2047-06-30"     # retirement date
+    annual_growth_rate: 0.03   # 3% pay rises
+    # Routing: where does the net income go?
+    # Income is NOT auto-added to net worth — only explicit contributions count
+    contributions:
+      - destination_account_id: "vanguard_isa"
+        rate: 0.10             # 10% of gross → ISA
+        cap_annual: 20000
+      - destination_account_id: "vanguard_sipp"
+        rate: 0.05             # 5% employee contribution
+        employer_top_up: 0.05  # 5% employer match
+        cap_annual: 60000
+
+  - id: "sarah_salary"
+    name: "Sarah — Marketing Manager"
+    person_id: "sarah"
+    gross_annual: 62000
+    currency: "GBP"
+    tax_treatment: "PAYE"
+    start_date: "2016-09-01"
+    end_date: "2049-09-22"
+    annual_growth_rate: 0.025
+    contributions:
+      - destination_account_id: "sarah_sipp"
+        rate: 0.05
+        employer_top_up: 0.04
+
+  - id: "james_consulting"
+    name: "Freelance Consulting"
+    person_id: "james"
+    gross_annual: 15000
+    currency: "GBP"
+    tax_treatment: "self_employed"
+    start_date: "2024-01-01"
+    end_date: "2028-12-31"
+    annual_growth_rate: 0.0
+    contributions: []
+
+# ── Savings Accounts ─────────────────────────────────────────
+savings_accounts:
+  - id: "halifax_cash_isa"
+    name: "Halifax Cash ISA"
+    account_type: "cash_ISA"
+    current_value: 42800
+    currency: "GBP"
+    owner_id: "james"
+    interest_rate_periods:
+      - start_date: "2024-01-01"
+        end_date: "2025-12-31"
+        rate: 0.0485
+      - start_date: "2026-01-01"
+        end_date: null
+        rate: 0.035            # assumed drop to ~3.5%
+    annual_contribution: 0     # contributions come via income routing
+    isa_allowance_used: 42800
+
+  - id: "james_current_account"
+    name: "James — Current Account (Emergency Fund)"
+    account_type: "general"
+    current_value: 18500
+    currency: "GBP"
+    owner_id: "james"
+    interest_rate_periods:
+      - start_date: "2025-01-01"
+        end_date: null
+        rate: 0.005
+    annual_contribution: 3600  # £300/month direct contribution
+
+# ── Investment Accounts ───────────────────────────────────────
+investment_accounts:
+  - id: "vanguard_isa"
+    name: "Vanguard Stocks & Shares ISA"
+    account_type: "ISA"
+    current_value: 184320
+    currency: "GBP"
+    owner_id: "james"
+    assumed_growth_rate: 0.07
+    holdings:
+      - id: "vwrp_isa"
+        name: "Vanguard FTSE All-World ETF (Acc)"
+        instrument_type: "ETF"
+        tracking_mode: "units"
+        units: 142.5
+        price_per_unit: 97.34
+        currency: "GBP"
+        assumed_growth_rate: 0.07
+        symbol_link:
+          provider: "yfinance"
+          symbol: "VWRP.L"
+          isin: "IE00BK5BQT80"
+          auto_refresh: true
+          refresh_schedule: "on_app_open"
+
+      - id: "vls80_isa"
+        name: "Vanguard LifeStrategy 80% Acc"
+        instrument_type: "fund"
+        tracking_mode: "units"
+        units: 3420.15
+        price_per_unit: 3.12
+        currency: "GBP"
+        assumed_growth_rate: 0.065
+        symbol_link:
+          provider: "yfinance"
+          symbol: "0P0000YXUZ.L"
+          auto_refresh: true
+          refresh_schedule: "daily"
+
+  - id: "fidelity_gia"
+    name: "Fidelity GIA"
+    account_type: "GIA"
+    current_value: 52180
+    currency: "GBP"
+    owner_id: "james"
+    assumed_growth_rate: 0.062
+    holdings:
+      - id: "aapl_gia"
+        name: "Apple Inc."
+        instrument_type: "share"
+        tracking_mode: "units"
+        units: 25
+        price_per_unit: 150.40   # GBP equivalent
+        currency: "GBP"
+        assumed_growth_rate: 0.08
+        symbol_link:
+          provider: "yfinance"
+          symbol: "AAPL"
+          auto_refresh: true
+          refresh_schedule: "daily"
+
+# ── Pension Funds ─────────────────────────────────────────────
+pension_funds:
+  - id: "vanguard_sipp"
+    name: "Vanguard SIPP (James)"
+    pension_type: "SIPP"
+    current_value: 182400
+    currency: "GBP"
+    owner_id: "james"
+    assumed_growth_rate: 0.07
+    drawdown_config:
+      mode: "pct_swr"          # pct_swr | fixed_amount | annuity
+      rate: 0.04               # 4% Safe Withdrawal Rate
+      start_date: "2047-07-01"
+      tax_free_lump_sum_pct: 0.25
+      lump_sum_taken: false
+    annuity_config: null
+
+  - id: "sarah_sipp"
+    name: "Sarah Workplace Pension (DC)"
+    pension_type: "workplace_DC"
+    current_value: 88400
+    currency: "GBP"
+    owner_id: "sarah"
+    assumed_growth_rate: 0.065
+    drawdown_config:
+      mode: "pct_swr"
+      rate: 0.04
+      start_date: "2049-10-01"
+      tax_free_lump_sum_pct: 0.25
+      lump_sum_taken: false
+    annuity_config: null
+
+# ── Property ─────────────────────────────────────────────────
+properties:
+  - id: "london_house"
+    name: "London House — Primary Residence"
+    property_type: "residential"
+    current_value: 485000
+    currency: "GBP"
+    owner_ids: ["james", "sarah"]
+    purchase_date: "2019-06-01"
+    purchase_price: 380000
+    assumed_growth_rate: 0.035
+    rental_income_annual: 0
+    mortgage_id: "london_mortgage"
+
+# ── Mortgages ─────────────────────────────────────────────────
+mortgages:
+  - id: "london_mortgage"
+    name: "London House Mortgage"
+    property_id: "london_house"
+    mortgage_type: "repayment"
+    original_principal: 320000
+    current_balance: 285000
+    currency: "GBP"
+    start_date: "2019-06-01"
+    term_years: 30
+    rate_periods:
+      - start_date: "2022-01-01"
+        end_date: "2027-01-01"
+        rate: 0.0189
+        rate_type: "fixed"
+      - start_date: "2027-01-01"
+        end_date: null
+        rate: 0.045
+        rate_type: "variable"  # assumed SVR
+    lump_sum_payments:
+      - date: "2026-06-01"
+        amount: 20000
+        label: "Bonus overpayment"
+
+# ── Expenses ─────────────────────────────────────────────────
+expense_buckets:
+  - id: "household"
+    name: "Household & Living"
+    annual_amount: 36000
+    currency: "GBP"
+    applies_to: ["james", "sarah"]
+    inflation_linked: true
+    start_date: "2025-01-01"
+    end_date: null
+
+  - id: "childcare"
+    name: "Childcare & Education"
+    annual_amount: 12000
+    currency: "GBP"
+    applies_to: ["james", "sarah"]
+    inflation_linked: true
+    start_date: "2025-01-01"
+    end_date: "2035-08-31"
+
+  - id: "retirement_living"
+    name: "Retirement Living Costs"
+    annual_amount: 42000
+    currency: "GBP"
+    applies_to: ["james", "sarah"]
+    inflation_linked: true
+    start_date: "2047-07-01"
+    end_date: null
+
+  - id: "healthcare"
+    name: "Healthcare / Long-term Care"
+    annual_amount: 8000
+    currency: "GBP"
+    applies_to: ["james", "sarah"]
+    inflation_linked: true
+    start_date: "2060-01-01"
+    end_date: null
+
+# ── Life Events ───────────────────────────────────────────────
+life_events:
+  - id: "car_purchase_2027"
+    name: "New Car Purchase"
+    event_type: "major_expense"
+    date: "2027-06-01"
+    amount: 35000
+    currency: "GBP"
+    affects_account_id: "james_current_account"
+
+  - id: "inheritance_2038"
+    name: "Estimated Inheritance"
+    event_type: "inheritance"
+    date: "2038-01-01"
+    amount: 80000
+    currency: "GBP"
+    affects_account_id: "vanguard_isa"
+    probability: 0.75          # used in Monte Carlo weighting
+
+# ── FIRE Target ───────────────────────────────────────────────
+fire_target:
+  target_net_worth: 1200000
+  annual_expenses_target: 48000
+  swr: 0.04
+  fire_type: "lean_fire"       # lean_fire | fire | fat_fire | coast_fire

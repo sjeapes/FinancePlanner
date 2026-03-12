@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeLedger — UI Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0f1b2d;
+    --navy-2: #162236;
+    --navy-3: #1d2f47;
+    --navy-4: #243859;
+    --teal: #0e9aad;
+    --teal-dim: #0b7a8a;
+    --teal-glow: rgba(14,154,173,0.15);
+    --gold: #d4a843;
+    --gold-dim: #a8832e;
+    --gold-glow: rgba(212,168,67,0.12);
+    --green: #2dbd7e;
+    --green-dim: rgba(45,189,126,0.15);
+    --red: #e05252;
+    --red-dim: rgba(224,82,82,0.15);
+    --slate: #8fa3b8;
+    --slate-dim: #3d5166;
+    --text: #e8edf2;
+    --text-dim: #7a93a8;
+    --border: rgba(255,255,255,0.07);
+    --border-accent: rgba(14,154,173,0.3);
+    --surface: rgba(255,255,255,0.04);
+    --surface-hover: rgba(255,255,255,0.07);
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 48px rgba(0,0,0,0.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── App Shell ─────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: 48px 1fr;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Top Bar ──────────────────────────────── */
+  .topbar {
+    grid-column: 1/-1;
+    background: var(--navy-2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .logo span { color: var(--teal); }
+
+  .topbar-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+  .topbar-scenario {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .topbar-scenario:hover { border-color: var(--teal); color: var(--teal); }
+  .scenario-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .topbar-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500;
+    padding: 5px 12px; border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .topbar-btn:hover { color: var(--text); border-color: var(--slate-dim); }
+  .topbar-btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 600; }
+  .topbar-btn.primary:hover { background: var(--teal-dim); }
+
+  .sync-indicator { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  /* ── Sidebar ──────────────────────────────── */
+  .sidebar {
+    background: var(--navy-2);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nav-group-label {
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 12px 20px 6px;
+    opacity: 0.6;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 20px;
+    font-size: 12px; font-weight: 400;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface); }
+  .nav-item.active { color: var(--teal); border-left-color: var(--teal); background: var(--teal-glow); font-weight: 500; }
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; opacity: 0.8; }
+  .nav-badge {
+    margin-left: auto; font-size: 9px; font-family: 'DM Mono', monospace;
+    background: var(--teal-glow); color: var(--teal);
+    border-radius: 10px; padding: 1px 7px;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-net-worth {
+    font-size: 10px; color: var(--text-dim); margin-bottom: 4px;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .sidebar-net-worth-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px; font-weight: 500;
+    color: var(--text);
+  }
+  .sidebar-net-worth-val small {
+    font-size: 11px; color: var(--green); margin-left: 6px;
+  }
+  .sidebar-as-of { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ── Main Content ─────────────────────────── */
+  .main {
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Screens ──────────────────────────────── */
+  .screen {
+    display: none;
+    padding: 24px;
+    animation: fadeIn 0.2s ease;
+    min-height: calc(100vh - 48px);
+  }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Page Header ──────────────────────────── */
+  .page-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .page-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .page-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+  .page-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  /* ── Buttons ──────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    border: 1px solid; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .btn-primary:hover { background: var(--teal-dim); }
+  .btn-secondary { background: transparent; border-color: var(--border); color: var(--text-dim); }
+  .btn-secondary:hover { border-color: var(--slate-dim); color: var(--text); }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); padding: 7px 10px; }
+  .btn-ghost:hover { color: var(--teal); }
+  .btn-gold { background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 600; }
+  .btn-gold:hover { background: var(--gold-dim); }
+  .btn-sm { padding: 4px 10px; font-size: 11px; border-radius: 5px; }
+  .btn-icon { padding: 6px; border-radius: 5px; }
+
+  /* ── Cards ────────────────────────────────── */
+  .card {
+    background: var(--navy-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card-title {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-dim); margin-bottom: 12px;
+  }
+  .card-accent { border-color: var(--teal-glow); box-shadow: 0 0 0 1px var(--teal-glow) inset; }
+
+  /* ── Grids ────────────────────────────────── */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+  .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
+
+  /* ── Stat Cards ───────────────────────────── */
+  .stat-card {
+    background: var(--navy-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .stat-card.teal::before { background: var(--teal); }
+  .stat-card.gold::before { background: var(--gold); }
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.red::before { background: var(--red); }
+  .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+  .stat-value { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; color: var(--text); line-height: 1; }
+  .stat-value.large { font-size: 28px; }
+  .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 5px; display: flex; align-items: center; gap: 6px; }
+  .stat-badge { font-size: 10px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+  .badge-green { background: var(--green-dim); color: var(--green); }
+  .badge-red { background: var(--red-dim); color: var(--red); }
+  .badge-teal { background: var(--teal-glow); color: var(--teal); }
+  .badge-gold { background: var(--gold-glow); color: var(--gold); }
+
+  /* ── Charts placeholder ───────────────────── */
+  .chart-placeholder {
+    background: var(--navy-3);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-placeholder canvas { width: 100%; height: 100%; }
+
+  /* ── Form elements ────────────────────────── */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 11px; font-weight: 500; color: var(--text-dim); margin-bottom: 5px; display: block; letter-spacing: 0.3px; }
+  .form-label .required { color: var(--teal); margin-left: 2px; }
+  .form-input {
+    width: 100%; padding: 8px 11px;
+    background: var(--navy-3); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-glow); }
+  .form-input.mono { font-family: 'DM Mono', monospace; }
+  .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a93a8'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+  .form-hint { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .input-group { position: relative; display: flex; align-items: stretch; }
+  .input-prefix, .input-suffix {
+    display: flex; align-items: center; padding: 0 10px;
+    background: var(--navy-4); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12px; font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
+  .input-prefix { border-right: none; border-radius: 6px 0 0 6px; }
+  .input-suffix { border-left: none; border-radius: 0 6px 6px 0; }
+  .input-group .form-input { border-radius: 0; flex: 1; }
+  .input-group .form-input:first-child { border-radius: 6px 0 0 6px; }
+  .input-group .form-input:last-child { border-radius: 0 6px 6px 0; }
+
+  .toggle-switch {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .toggle-track {
+    width: 36px; height: 18px; border-radius: 9px;
+    background: var(--navy-4); border: 1px solid var(--border);
+    position: relative; transition: all 0.2s; flex-shrink: 0;
+  }
+  .toggle-track.on { background: var(--teal); border-color: var(--teal); }
+  .toggle-thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%; background: #fff;
+    transition: left 0.2s;
+  }
+  .toggle-track.on .toggle-thumb { left: 20px; }
+  .toggle-label { font-size: 12px; color: var(--text-dim); }
+
+  .radio-group { display: flex; gap: 8px; }
+  .radio-option {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 7px 12px; border-radius: 6px;
+    border: 1px solid var(--border); cursor: pointer;
+    font-size: 11px; color: var(--text-dim); transition: all 0.15s;
+  }
+  .radio-option.selected { border-color: var(--teal); color: var(--teal); background: var(--teal-glow); }
+  .radio-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
+  .radio-option.selected .radio-dot { background: var(--teal); border-color: var(--teal); }
+
+  /* ── Section divider ──────────────────────── */
+  .section-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 20px 0 16px;
+  }
+  .section-divider-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--teal); white-space: nowrap; }
+  .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Tables ───────────────────────────────── */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-dim); padding: 8px 12px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 12px; color: var(--text); vertical-align: middle;
+  }
+  .data-table tr:hover td { background: var(--surface); }
+  .data-table .mono { font-family: 'DM Mono', monospace; font-size: 12px; }
+  .data-table .dim { color: var(--text-dim); }
+  .data-table .positive { color: var(--green); font-family: 'DM Mono', monospace; }
+  .data-table .negative { color: var(--red); font-family: 'DM Mono', monospace; }
+
+  /* ── Tags ─────────────────────────────────── */
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+    white-space: nowrap;
+  }
+  .tag-etf { background: rgba(14,154,173,0.15); color: var(--teal); }
+  .tag-share { background: rgba(212,168,67,0.15); color: var(--gold); }
+  .tag-fund { background: rgba(45,189,126,0.15); color: var(--green); }
+  .tag-bond { background: rgba(143,163,184,0.15); color: var(--slate); }
+  .tag-pension { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .tag-isa { background: rgba(14,154,173,0.1); color: var(--teal); }
+  .tag-savings { background: rgba(45,189,126,0.1); color: var(--green); }
+  .tag-property { background: rgba(212,168,67,0.1); color: var(--gold); }
+
+  /* ── Symbol Search ────────────────────────── */
+  .symbol-search-result {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border-radius: 6px; cursor: pointer; transition: all 0.12s;
+    border: 1px solid transparent;
+  }
+  .symbol-search-result:hover { background: var(--surface); border-color: var(--border); }
+  .symbol-search-result.selected { background: var(--teal-glow); border-color: var(--border-accent); }
+  .symbol-ticker { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--teal); min-width: 70px; }
+  .symbol-name { font-size: 12px; color: var(--text); flex: 1; }
+  .symbol-exch { font-size: 10px; color: var(--text-dim); background: var(--surface); padding: 2px 7px; border-radius: 4px; font-family: 'DM Mono', monospace; }
+
+  /* ── Inline computed value ────────────────── */
+  .computed-value-preview {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 6px;
+    background: var(--teal-glow); border: 1px solid var(--border-accent);
+    margin-top: 8px;
+  }
+  .computed-label { font-size: 10px; color: var(--teal); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .computed-value { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; color: var(--text); margin-left: auto; }
+  .computed-equation { font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+
+  /* ── Price fetch status ───────────────────── */
+  .fetch-status {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border-radius: 6px; font-size: 11px;
+  }
+  .fetch-status.ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(45,189,126,0.2); }
+  .fetch-status.stale { background: var(--gold-glow); color: var(--gold); border: 1px solid rgba(212,168,67,0.2); }
+  .fetch-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ── Scenario cards ───────────────────────── */
+  .scenario-card {
+    background: var(--navy-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; cursor: pointer;
+    transition: all 0.15s; position: relative; overflow: hidden;
+  }
+  .scenario-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .scenario-card.s-base::before { background: var(--teal); }
+  .scenario-card.s-alt1::before { background: var(--gold); }
+  .scenario-card.s-alt2::before { background: #a78bfa; }
+  .scenario-card.s-alt3::before { background: var(--green); }
+  .scenario-card:hover { border-color: var(--slate-dim); }
+  .scenario-card.active { border-color: var(--teal); }
+  .scenario-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .scenario-desc { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+  .scenario-metric { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+  .scenario-metric-label { font-size: 10px; color: var(--text-dim); }
+  .scenario-metric-val { font-family: 'DM Mono', monospace; font-size: 13px; }
+
+  /* ── Income timeline bars ─────────────────── */
+  .income-timeline { display: flex; flex-direction: column; gap: 8px; }
+  .income-bar-row { display: flex; align-items: center; gap: 10px; }
+  .income-bar-label { width: 140px; flex-shrink: 0; font-size: 11px; color: var(--text-dim); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .income-bar-track { flex: 1; height: 20px; background: var(--navy-3); border-radius: 4px; position: relative; overflow: visible; }
+  .income-bar-fill {
+    position: absolute; top: 2px; height: 16px; border-radius: 3px;
+    display: flex; align-items: center; padding: 0 7px;
+    font-size: 10px; font-weight: 500; white-space: nowrap; overflow: hidden;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .income-bar-fill:hover { opacity: 0.85; }
+  .income-bar-amount { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); width: 80px; text-align: right; flex-shrink: 0; }
+  .year-axis { display: flex; padding: 4px 0 0 150px; }
+  .year-tick { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); flex: 1; text-align: center; }
+
+  /* ── Report toggle grid ───────────────────── */
+  .report-toggle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .report-section-toggle {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 7px;
+    border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+  }
+  .report-section-toggle.on { border-color: var(--border-accent); background: var(--teal-glow); }
+  .report-section-toggle.on .toggle-icon { color: var(--teal); }
+  .toggle-icon { font-size: 14px; width: 20px; text-align: center; color: var(--text-dim); }
+  .toggle-text .toggle-title { font-size: 11px; font-weight: 500; color: var(--text); }
+  .toggle-text .toggle-sub { font-size: 10px; color: var(--text-dim); }
+
+  .graph-card {
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; cursor: pointer; transition: all 0.15s; position: relative;
+  }
+  .graph-card.on { border-color: var(--teal); }
+  .graph-card.on::after {
+    content: '✓'; position: absolute; top: 6px; right: 8px;
+    font-size: 10px; color: var(--teal);
+  }
+  .graph-card-preview {
+    height: 50px; background: var(--navy-3); border-radius: 5px;
+    margin-bottom: 7px; overflow: hidden; position: relative;
+  }
+  .graph-card-name { font-size: 10px; font-weight: 500; color: var(--text); }
+
+  /* ── Scrollbar ────────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--navy-4); border-radius: 2px; }
+
+  /* ── Tooltip ──────────────────────────────── */
+  .tooltip-box {
+    position: absolute; background: var(--navy-4);
+    border: 1px solid var(--border-accent);
+    border-radius: 8px; padding: 12px 14px;
+    pointer-events: none; z-index: 50;
+    box-shadow: var(--shadow-lg);
+    min-width: 160px;
+  }
+  .tooltip-year { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
+  .tooltip-row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; margin-bottom: 4px; }
+  .tooltip-label { font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
+  .tooltip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tooltip-val { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; }
+  .tooltip-total { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+  .tooltip-total .tooltip-val { font-size: 14px; color: var(--text); }
+
+  /* ── Pie chart placeholder ────────────────── */
+  .pie-ring {
+    width: 100px; height: 100px; border-radius: 50%; flex-shrink: 0;
+    background: conic-gradient(
+      var(--teal) 0deg 115deg,
+      var(--gold) 115deg 195deg,
+      #a78bfa 195deg 275deg,
+      var(--green) 275deg 330deg,
+      var(--slate-dim) 330deg 360deg
+    );
+    position: relative;
+  }
+  .pie-ring::after {
+    content: ''; position: absolute;
+    inset: 20px; border-radius: 50%; background: var(--navy-2);
+  }
+
+  .pie-legend { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .pie-legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+  .pie-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pie-legend-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); margin-left: auto; }
+
+  /* ── Checkpoint dots on timeline ──────────── */
+  .checkpoint-marker {
+    position: absolute; top: 0; width: 1px; background: rgba(212,168,67,0.4);
+    border: none; pointer-events: none;
+  }
+  .checkpoint-label {
+    position: absolute; top: -16px; transform: translateX(-50%);
+    font-size: 9px; font-family: 'DM Mono', monospace; color: var(--gold);
+    white-space: nowrap;
+  }
+
+  /* ── Rate period tags ─────────────────────── */
+  .rate-period {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 10px; border-radius: 6px;
+    background: var(--navy-3); border: 1px solid var(--border);
+    margin-bottom: 6px; font-size: 11px;
+  }
+  .rate-period-rate { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--teal); min-width: 50px; }
+  .rate-period-dates { color: var(--text-dim); flex: 1; font-family: 'DM Mono', monospace; font-size: 10px; }
+  .rate-period-type { }
+  .rate-remove { margin-left: auto; color: var(--text-dim); cursor: pointer; padding: 2px 4px; border-radius: 3px; font-size: 13px; }
+  .rate-remove:hover { color: var(--red); background: var(--red-dim); }
+
+  .add-period-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 10px; border-radius: 6px; width: 100%;
+    border: 1px dashed var(--border); color: var(--text-dim);
+    background: transparent; cursor: pointer; font-size: 11px;
+    transition: all 0.15s;
+  }
+  .add-period-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+  /* ── Progress bar ─────────────────────────── */
+  .progress-bar { height: 4px; background: var(--navy-4); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+  /* ── Sparkline ────────────────────────────── */
+  .sparkline { width: 60px; height: 24px; flex-shrink: 0; }
+
+  /* ── Tab bar ──────────────────────────────── */
+  .tab-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .tab {
+    padding: 7px 14px; font-size: 12px; color: var(--text-dim);
+    border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 500; }
+
+  /* ── Inline annotation ────────────────────── */
+  .annotation-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  }
+  .annotation-pill.info { background: var(--teal-glow); color: var(--teal); }
+  .annotation-pill.warn { background: var(--gold-glow); color: var(--gold); }
+
+  /* ── Step indicator ───────────────────────── */
+  .step-indicator { display: flex; align-items: center; gap: 0; margin-bottom: 20px; }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; padding: 6px 14px; background: var(--navy-3);
+    border: 1px solid var(--border); color: var(--text-dim);
+  }
+  .step:first-child { border-radius: 6px 0 0 6px; }
+  .step:last-child { border-radius: 0 6px 6px 0; }
+  .step.active { background: var(--teal-glow); border-color: var(--teal); color: var(--teal); }
+  .step.done { background: var(--navy-4); color: var(--text-dim); }
+  .step-num { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0; }
+  .step.done .step-num { background: var(--navy-4); }
+
+  /* ── Sticky form footer ───────────────────── */
+  .form-footer {
+    position: sticky; bottom: 0; background: var(--navy-2);
+    border-top: 1px solid var(--border); padding: 12px 24px;
+    display: flex; align-items: center; gap: 10px;
+    margin: 0 -24px -24px;
+  }
+
+  /* ── FIRE threshold line ──────────────────── */
+  .fire-line {
+    position: absolute; left: 0; right: 0; border-top: 1.5px dashed rgba(212,168,67,0.6);
+    pointer-events: none;
+  }
+  .fire-label {
+    position: absolute; right: 12px; font-size: 9px;
+    font-family: 'DM Mono', monospace; color: var(--gold);
+    transform: translateY(-14px);
+  }
+
+  /* ── Screen label badge ───────────────────── */
+  .screen-label {
+    position: fixed; bottom: 14px; right: 14px;
+    background: var(--navy-4); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 10px; color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    z-index: 200;
+  }
+
+  /* ── Collapse section ─────────────────────── */
+  .collapsible-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: var(--navy-3); border-radius: 7px;
+    cursor: pointer; border: 1px solid var(--border);
+    font-size: 12px; font-weight: 500; color: var(--text);
+    margin-bottom: 8px;
+  }
+  .collapsible-header:hover { border-color: var(--slate-dim); }
+  .collapse-arrow { margin-left: auto; color: var(--text-dim); font-size: 10px; }
+
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ══ TOP BAR ═════════════════════════════════════════════════ -->
+  <div class="topbar">
+    <div class="logo">Life<span>Ledger</span></div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-scenario" onclick="showScenarioModal()">
+      <div class="scenario-dot"></div>
+      Base Plan · 2025–2065
+      <span style="color:var(--text-dim);font-size:10px;margin-left:4px">▾</span>
+    </div>
+    <div class="topbar-scenario" style="border-color:rgba(212,168,67,0.3);">
+      <div class="scenario-dot" style="background:var(--gold)"></div>
+      Retire at 55
+      <span style="color:var(--text-dim);font-size:10px;margin-left:4px">▾</span>
+    </div>
+    <div class="topbar-right">
+      <div class="sync-indicator"></div>
+      <span style="font-size:10px;color:var(--text-dim)">Synced · 2m ago</span>
+      <div class="topbar-divider"></div>
+      <button class="topbar-btn" onclick="navigate('report')">⬇ Export Report</button>
+      <button class="topbar-btn primary">+ Add Account</button>
+    </div>
+  </div>
+
+  <!-- ══ SIDEBAR ════════════════════════════════════════════════ -->
+  <nav class="sidebar">
+    <div class="nav-group-label">Analysis</div>
+    <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('graph')" id="nav-graph">
+      <span class="nav-icon">⟿</span> Timeline Graph
+    </div>
+    <div class="nav-item" onclick="navigate('portfolio')" id="nav-portfolio">
+      <span class="nav-icon">◑</span> Portfolio Mix
+    </div>
+
+    <div class="nav-group-label">Data Entry</div>
+    <div class="nav-item" onclick="navigate('income')" id="nav-income">
+      <span class="nav-icon">↑</span> Income Sources
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" onclick="navigate('accounts')" id="nav-accounts">
+      <span class="nav-icon">≡</span> Accounts
+      <span class="nav-badge">7</span>
+    </div>
+    <div class="nav-item" onclick="navigate('investment-entry')" id="nav-investment-entry">
+      <span class="nav-icon">◎</span> Add Investment
+    </div>
+    <div class="nav-item" onclick="navigate('property')" id="nav-property">
+      <span class="nav-icon">⌂</span> Property
+    </div>
+
+    <div class="nav-group-label">Planning</div>
+    <div class="nav-item" onclick="navigate('scenarios')" id="nav-scenarios">
+      <span class="nav-icon">⊕</span> Scenarios
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" onclick="navigate('retirement')" id="nav-retirement">
+      <span class="nav-icon">⊙</span> Retirement
+    </div>
+    <div class="nav-item" onclick="navigate('report')" id="nav-report">
+      <span class="nav-icon">⬡</span> Report Export
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-net-worth">Total Net Worth</div>
+      <div class="sidebar-net-worth-val">£842,340 <small>+6.2%</small></div>
+      <div class="sidebar-as-of">as of 8 Mar 2025</div>
+    </div>
+  </nav>
+
+  <!-- ══ MAIN ═══════════════════════════════════════════════════ -->
+  <main class="main" id="main">
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN 1: DASHBOARD                                      -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen active" id="screen-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Good morning, James</div>
+          <div class="page-subtitle">Sunday 8 March 2025 · Base Plan · Synced 2 minutes ago</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary btn-sm" onclick="navigate('graph')">View Timeline →</button>
+          <button class="btn btn-primary btn-sm">+ Checkpoint</button>
+        </div>
+      </div>
+
+      <!-- Stat strip -->
+      <div class="grid-4" style="margin-bottom:14px">
+        <div class="stat-card teal">
+          <div class="stat-label">Total Net Worth</div>
+          <div class="stat-value large">£842,340</div>
+          <div class="stat-sub"><span class="stat-badge badge-green">+£49,800 YTD</span></div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">Liquid Assets</div>
+          <div class="stat-value">£324,180</div>
+          <div class="stat-sub">38.5% of total <span class="stat-badge badge-teal">ISA · SIPP · GIA</span></div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">FIRE Number</div>
+          <div class="stat-value">£1,200,000</div>
+          <div class="stat-sub">
+            <div class="progress-bar" style="flex:1; margin-right:6px"><div class="progress-fill" style="width:70%;background:var(--green)"></div></div>
+            70% · ~8.3 yrs
+          </div>
+        </div>
+        <div class="stat-card" style="">
+          <div class="stat-label">Projected Retirement</div>
+          <div class="stat-value">2042</div>
+          <div class="stat-sub">Age 55 · <span class="stat-badge badge-gold">17 years away</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2-1" style="margin-bottom:14px">
+        <!-- Mini timeline -->
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            Net Worth Projection
+            <button class="btn btn-ghost btn-sm" onclick="navigate('graph')">Expand ↗</button>
+          </div>
+          <div class="chart-placeholder" style="height:160px">
+            <svg width="100%" height="160" viewBox="0 0 600 160" preserveAspectRatio="none">
+              <!-- Grid lines -->
+              <line x1="0" y1="130" x2="600" y2="130" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+              <line x1="0" y1="95" x2="600" y2="95" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+              <line x1="0" y1="60" x2="600" y2="60" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+              <line x1="0" y1="25" x2="600" y2="25" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+              <!-- FIRE line -->
+              <line x1="0" y1="30" x2="600" y2="30" stroke="rgba(212,168,67,0.5)" stroke-width="1.5" stroke-dasharray="5,4"/>
+              <text x="578" y="26" font-family="DM Mono" font-size="8" fill="rgba(212,168,67,0.8)">FIRE</text>
+              <!-- Checkpoint marker -->
+              <line x1="95" y1="0" x2="95" y2="160" stroke="rgba(212,168,67,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+              <text x="95" y="10" text-anchor="middle" font-family="DM Mono" font-size="7" fill="rgba(212,168,67,0.6)">Jan '24</text>
+              <line x1="195" y1="0" x2="195" y2="160" stroke="rgba(212,168,67,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+              <text x="195" y="10" text-anchor="middle" font-family="DM Mono" font-size="7" fill="rgba(212,168,67,0.6)">Today</text>
+              <!-- Area fill (past, solid) -->
+              <defs>
+                <linearGradient id="pastGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0e9aad" stop-opacity="0.35"/>
+                  <stop offset="100%" stop-color="#0e9aad" stop-opacity="0.0"/>
+                </linearGradient>
+                <linearGradient id="futureGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0e9aad" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#0e9aad" stop-opacity="0.0"/>
+                </linearGradient>
+                <linearGradient id="scenario2Grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#d4a843" stop-opacity="0.12"/>
+                  <stop offset="100%" stop-color="#d4a843" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <!-- Past area -->
+              <path d="M0,145 C20,140 50,132 95,118 L95,160 L0,160Z" fill="url(#pastGrad)"/>
+              <!-- Past line (solid) -->
+              <path d="M0,145 C20,140 50,132 95,118 C130,108 160,103 195,100" fill="none" stroke="#0e9aad" stroke-width="2"/>
+              <!-- Future area baseline -->
+              <path d="M195,100 C250,92 310,78 360,55 C400,38 440,28 490,22 C520,18 550,16 600,14 L600,160 L195,160Z" fill="url(#futureGrad)"/>
+              <!-- Future line (dashed) -->
+              <path d="M195,100 C250,92 310,78 360,55 C400,38 440,28 490,22 C520,18 550,16 600,14" fill="none" stroke="#0e9aad" stroke-width="2" stroke-dasharray="6,4" opacity="0.8"/>
+              <!-- Scenario 2 (gold) -->
+              <path d="M195,100 C240,96 295,86 350,66 C390,52 430,42 480,36 C510,32 550,30 600,28 L600,160 L195,160Z" fill="url(#scenario2Grad)"/>
+              <path d="M195,100 C240,96 295,86 350,66 C390,52 430,42 480,36 C510,32 550,30 600,28" fill="none" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.7"/>
+              <!-- Current position dot -->
+              <circle cx="195" cy="100" r="4" fill="#0e9aad"/>
+              <circle cx="195" cy="100" r="7" fill="none" stroke="#0e9aad" stroke-width="1" opacity="0.4"/>
+              <!-- X axis labels -->
+              <text x="5" y="155" font-family="DM Mono" font-size="8" fill="#3d5166">2020</text>
+              <text x="180" y="155" font-family="DM Mono" font-size="8" fill="#3d5166">2025</text>
+              <text x="290" y="155" font-family="DM Mono" font-size="8" fill="#3d5166">2030</text>
+              <text x="390" y="155" font-family="DM Mono" font-size="8" fill="#3d5166">2040</text>
+              <text x="490" y="155" font-family="DM Mono" font-size="8" fill="#3d5166">2050</text>
+              <text x="565" y="155" font-family="DM Mono" font-size="8" fill="#3d5166">2060</text>
+            </svg>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">
+            <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim)"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#0e9aad" stroke-width="2"/></svg> Base Plan</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim)"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="4,3"/></svg> Retire at 55</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim)"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="rgba(212,168,67,0.4)" stroke-width="1" stroke-dasharray="3,3"/></svg> FIRE threshold</span>
+            <span style="margin-left:auto;font-size:10px;color:var(--text-dim)">2 checkpoints shown</span>
+          </div>
+        </div>
+
+        <!-- Portfolio donut -->
+        <div class="card">
+          <div class="card-title">Portfolio Mix</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div class="pie-ring"></div>
+            <div class="pie-legend">
+              <div class="pie-legend-item"><div class="pie-dot" style="background:var(--teal)"></div> Investments <span class="pie-legend-pct">32%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:var(--gold)"></div> Property <span class="pie-legend-pct">22%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#a78bfa"></div> Pensions <span class="pie-legend-pct">22%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:var(--green)"></div> Savings <span class="pie-legend-pct">15%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:var(--slate-dim)"></div> Cash <span class="pie-legend-pct">9%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account summary table -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          Account Summary
+          <button class="btn btn-ghost btn-sm" onclick="navigate('accounts')">View all →</button>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Account</th><th>Type</th><th>Current Value</th>
+              <th>Growth / Rate</th><th>YTD</th><th>Last Checkpoint</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Vanguard ISA</strong></td>
+              <td><span class="tag tag-isa">ISA</span></td>
+              <td class="mono">£184,320</td>
+              <td class="mono" style="color:var(--teal)">+7.0% p.a.</td>
+              <td class="positive">+£11,240</td>
+              <td class="dim">Jan 2025</td>
+              <td><button class="btn btn-ghost btn-sm">→</button></td>
+            </tr>
+            <tr>
+              <td><strong>Vanguard SIPP</strong></td>
+              <td><span class="tag tag-pension">SIPP</span></td>
+              <td class="mono">£182,400</td>
+              <td class="mono" style="color:var(--teal)">+7.0% p.a.</td>
+              <td class="positive">+£11,940</td>
+              <td class="dim">Jan 2025</td>
+              <td><button class="btn btn-ghost btn-sm">→</button></td>
+            </tr>
+            <tr>
+              <td><strong>Halifax Cash ISA</strong></td>
+              <td><span class="tag tag-savings">Savings</span></td>
+              <td class="mono">£42,800</td>
+              <td class="mono" style="color:var(--gold)">4.85% AER</td>
+              <td class="positive">+£2,180</td>
+              <td class="dim">Mar 2025</td>
+              <td><button class="btn btn-ghost btn-sm">→</button></td>
+            </tr>
+            <tr>
+              <td><strong>London House</strong></td>
+              <td><span class="tag tag-property">Property</span></td>
+              <td class="mono">£485,000</td>
+              <td class="mono" style="color:var(--slate)">+3.5% est.</td>
+              <td class="positive">+£16,400</td>
+              <td class="dim">Mar 2025</td>
+              <td><button class="btn btn-ghost btn-sm">→</button></td>
+            </tr>
+            <tr>
+              <td><strong>Fidelity GIA</strong></td>
+              <td><span class="tag tag-etf">GIA</span></td>
+              <td class="mono">£52,180</td>
+              <td class="mono" style="color:var(--teal)">+6.2% p.a.</td>
+              <td class="positive">+£3,040</td>
+              <td class="dim">Feb 2025</td>
+              <td><button class="btn btn-ghost btn-sm">→</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div><!-- /dashboard -->
+
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN 2: TIMELINE GRAPH                                 -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-graph">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Timeline Graph</div>
+          <div class="page-subtitle">Hover to explore · Drag crosshair to compare years</div>
+        </div>
+        <div class="page-actions">
+          <div style="display:flex;gap:4px;align-items:center;background:var(--navy-3);border:1px solid var(--border);border-radius:7px;padding:3px">
+            <button class="btn btn-ghost btn-sm" style="border-radius:5px;color:var(--text-dim)">Nominal</button>
+            <button class="btn btn-sm" style="background:var(--navy-4);border-color:var(--border);border-radius:5px;color:var(--text)">Real (CPI)</button>
+          </div>
+          <button class="btn btn-secondary btn-sm">🎲 Monte Carlo</button>
+          <button class="btn btn-primary btn-sm">⬇ Export Chart</button>
+        </div>
+      </div>
+
+      <!-- Series toggles -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;margin-right:4px">SERIES:</div>
+        <div class="annotation-pill info" style="cursor:pointer">● Total Net Worth</div>
+        <div class="annotation-pill" style="background:rgba(212,168,67,0.15);color:var(--gold);cursor:pointer">● Pensions</div>
+        <div class="annotation-pill info" style="cursor:pointer;opacity:0.5">● Investments</div>
+        <div class="annotation-pill" style="background:rgba(45,189,126,0.15);color:var(--green);cursor:pointer">● Savings</div>
+        <div class="annotation-pill" style="background:rgba(143,163,184,0.15);color:var(--slate);cursor:pointer;opacity:0.5">● Property</div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span style="font-size:10px;color:var(--text-dim)">SCENARIOS:</span>
+          <div class="annotation-pill info" style="cursor:pointer">◆ Base</div>
+          <div class="annotation-pill" style="background:rgba(212,168,67,0.15);color:var(--gold);cursor:pointer">◆ Retire 55</div>
+        </div>
+      </div>
+
+      <!-- Chart area + tooltip -->
+      <div class="card" style="padding:16px;margin-bottom:14px;position:relative">
+        <div class="chart-placeholder" style="height:280px;cursor:crosshair" id="mainChart">
+          <svg width="100%" height="280" viewBox="0 0 800 280" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0e9aad" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#0e9aad" stop-opacity="0.02"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#d4a843" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#d4a843" stop-opacity="0.02"/>
+              </linearGradient>
+              <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.02"/>
+              </linearGradient>
+            </defs>
+            <!-- Grid -->
+            <line x1="0" y1="230" x2="800" y2="230" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="180" x2="800" y2="180" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="130" x2="800" y2="130" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="80" x2="800" y2="80" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="30" x2="800" y2="30" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <!-- Y axis labels -->
+            <text x="5" y="233" font-family="DM Mono" font-size="9" fill="#3d5166">£0</text>
+            <text x="5" y="183" font-family="DM Mono" font-size="9" fill="#3d5166">£500k</text>
+            <text x="5" y="133" font-family="DM Mono" font-size="9" fill="#3d5166">£1m</text>
+            <text x="5" y="83" font-family="DM Mono" font-size="9" fill="#3d5166">£1.5m</text>
+            <text x="5" y="33" font-family="DM Mono" font-size="9" fill="#3d5166">£2m</text>
+            <!-- FIRE line -->
+            <line x1="40" y1="110" x2="800" y2="110" stroke="rgba(212,168,67,0.5)" stroke-width="1.5" stroke-dasharray="6,5"/>
+            <text x="720" y="104" font-family="DM Mono" font-size="9" fill="rgba(212,168,67,0.8)">FIRE £1.2m</text>
+            <!-- Checkpoints -->
+            <line x1="200" y1="0" x2="200" y2="260" stroke="rgba(212,168,67,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="200" y="14" text-anchor="middle" font-family="DM Mono" font-size="8" fill="rgba(212,168,67,0.6)">▼ Jan'24</text>
+            <line x1="260" y1="0" x2="260" y2="260" stroke="rgba(212,168,67,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="260" y="14" text-anchor="middle" font-family="DM Mono" font-size="8" fill="rgba(212,168,67,0.6)">▼ Today</text>
+            <!-- Pension area (gold) -->
+            <path d="M40,230 C120,228 200,224 260,218 C330,210 420,180 510,148 C580,123 660,105 740,95 C770,91 790,88 800,87 L800,260 L40,260Z" fill="url(#g2)" opacity="0.6"/>
+            <!-- Investment area (teal) -->
+            <path d="M40,225 C120,220 200,214 260,208 C330,198 420,162 510,126 C580,100 660,80 740,68 C770,64 790,61 800,60 L800,87 C790,88 770,91 740,95 C660,105 580,123 510,148 C420,180 330,210 260,218 C200,224 120,228 40,230Z" fill="url(#g1)" opacity="0.7"/>
+            <!-- Savings area (green, thin) -->
+            <path d="M40,220 C120,214 200,207 260,200 C330,190 420,155 510,118 C580,92 660,72 740,62 L800,60 L800,68 C790,61 770,64 740,68 C660,80 580,100 510,126 C420,162 330,198 260,208 C200,214 120,220 40,225Z" fill="rgba(45,189,126,0.12)" opacity="0.8"/>
+            <!-- Total net worth line (solid to checkpoint, dashed after) -->
+            <path d="M40,218 C120,210 200,200 260,190" fill="none" stroke="#0e9aad" stroke-width="2.5"/>
+            <path d="M260,190 C330,178 420,148 510,112 C580,86 660,64 740,52 C770,48 790,45 800,44" fill="none" stroke="#0e9aad" stroke-width="2.5" stroke-dasharray="7,5"/>
+            <!-- Scenario 2 total (gold dashed) -->
+            <path d="M260,190 C320,182 410,156 500,122 C565,99 645,76 730,60 C760,55 785,51 800,50" fill="none" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.7"/>
+            <!-- MC bands (P10-P90) subtle -->
+            <path d="M260,190 C330,185 420,160 510,128 C580,104 660,82 740,68 C770,64 790,60 800,58 C790,50 770,44 740,40 C660,34 580,22 510,0 C420,0 330,0 260,190Z" fill="rgba(14,154,173,0.06)"/>
+            <!-- Current dot -->
+            <circle cx="260" cy="190" r="5" fill="#0e9aad"/>
+            <circle cx="260" cy="190" r="9" fill="none" stroke="#0e9aad" stroke-width="1.5" opacity="0.4"/>
+            <!-- Crosshair at ~2040 -->
+            <line x1="530" y1="0" x2="530" y2="260" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <circle cx="530" cy="110" r="3.5" fill="#0e9aad"/>
+            <circle cx="530" cy="146" r="3.5" fill="#d4a843"/>
+            <!-- X axis labels -->
+            <text x="40" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2020</text>
+            <text x="160" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2025</text>
+            <text x="300" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2032</text>
+            <text x="420" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2038</text>
+            <text x="510" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2042</text>
+            <text x="620" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2050</text>
+            <text x="720" y="275" font-family="DM Mono" font-size="9" fill="#3d5166">2060</text>
+          </svg>
+
+          <!-- Crosshair tooltip -->
+          <div class="tooltip-box" style="right:160px;top:40px">
+            <div class="tooltip-year">Year 2042 · Age 55</div>
+            <div class="tooltip-row">
+              <div class="tooltip-label"><div class="tooltip-dot" style="background:var(--teal)"></div> Investments</div>
+              <div class="tooltip-val" style="color:var(--teal)">£412,840</div>
+            </div>
+            <div class="tooltip-row">
+              <div class="tooltip-label"><div class="tooltip-dot" style="background:#a78bfa"></div> Pensions</div>
+              <div class="tooltip-val" style="color:#a78bfa">£584,200</div>
+            </div>
+            <div class="tooltip-row">
+              <div class="tooltip-label"><div class="tooltip-dot" style="background:var(--green)"></div> Savings</div>
+              <div class="tooltip-val" style="color:var(--green)">£94,300</div>
+            </div>
+            <div class="tooltip-row">
+              <div class="tooltip-label"><div class="tooltip-dot" style="background:var(--gold)"></div> Property</div>
+              <div class="tooltip-val" style="color:var(--gold)">£218,000</div>
+            </div>
+            <div class="tooltip-row tooltip-total">
+              <div class="tooltip-label" style="font-weight:600;color:var(--text)">Total Net Worth</div>
+              <div class="tooltip-val" style="color:var(--text);font-size:16px">£1,309,340</div>
+            </div>
+            <div class="tooltip-row" style="margin-top:6px">
+              <div class="tooltip-label">Retire at 55</div>
+              <div class="tooltip-val" style="color:var(--gold);font-size:12px">£1,268,000</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-chart: income vs expenses in retirement -->
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">Retirement Income vs Expenses (2042+)</div>
+          <div class="chart-placeholder" style="height:100px">
+            <svg width="100%" height="100" viewBox="0 0 500 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="ig" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#2dbd7e" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#2dbd7e" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e05252" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="#e05252" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M0,35 C50,33 100,30 200,28 C280,26 360,22 420,18 C450,16 480,15 500,14 L500,100 L0,100Z" fill="url(#ig)"/>
+              <path d="M0,35 C50,33 100,30 200,28 C280,26 360,22 420,18 C450,16 480,15 500,14" fill="none" stroke="#2dbd7e" stroke-width="2"/>
+              <path d="M0,55 C50,55 100,56 200,58 C280,60 360,65 420,72 C450,76 480,81 500,85 L500,100 L0,100Z" fill="url(#eg)"/>
+              <path d="M0,55 C50,55 100,56 200,58 C280,60 360,65 420,72 C450,76 480,81 500,85" fill="none" stroke="#e05252" stroke-width="1.5" stroke-dasharray="5,4"/>
+              <!-- Surplus shading -->
+              <path d="M0,55 C50,55 100,56 200,58 C280,60 360,65 420,72 L420,18 C360,22 280,26 200,28 C100,30 50,33 0,35Z" fill="rgba(45,189,126,0.07)"/>
+              <text x="10" y="15" font-family="DM Mono" font-size="8" fill="#2dbd7e">Income</text>
+              <text x="10" y="70" font-family="DM Mono" font-size="8" fill="#e05252">Expenses</text>
+              <text x="0" y="95" font-family="DM Mono" font-size="7" fill="#3d5166">2042</text>
+              <text x="195" y="95" font-family="DM Mono" font-size="7" fill="#3d5166">2052</text>
+              <text x="395" y="95" font-family="DM Mono" font-size="7" fill="#3d5166">2062</text>
+            </svg>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Monte Carlo P10 / P50 / P90</div>
+          <div class="chart-placeholder" style="height:100px">
+            <svg width="100%" height="100" viewBox="0 0 500 100" preserveAspectRatio="none">
+              <path d="M0,80 C100,60 200,20 300,8 C380,0 430,-5 500,-10 L500,100 L0,100Z" fill="rgba(14,154,173,0.06)"/>
+              <path d="M0,80 C100,65 200,35 300,22 C380,12 430,6 500,4" fill="none" stroke="#0e9aad" stroke-width="1" opacity="0.4"/>
+              <path d="M0,82 C100,70 200,45 300,32 C380,22 430,16 500,14" fill="none" stroke="#0e9aad" stroke-width="2" opacity="0.9"/>
+              <path d="M0,85 C100,78 200,62 300,52 C380,44 430,40 500,38" fill="none" stroke="#0e9aad" stroke-width="1" opacity="0.4"/>
+              <text x="440" y="8" font-family="DM Mono" font-size="7" fill="rgba(14,154,173,0.6)">P90</text>
+              <text x="440" y="18" font-family="DM Mono" font-size="7" fill="#0e9aad">P50</text>
+              <text x="440" y="42" font-family="DM Mono" font-size="7" fill="rgba(14,154,173,0.6)">P10</text>
+              <!-- Mini paths representing individual runs -->
+              <path d="M0,82 C80,74 150,52 250,38 C330,26 400,18 500,14" fill="none" stroke="rgba(14,154,173,0.08)" stroke-width="0.8"/>
+              <path d="M0,81 C80,70 160,42 260,28 C340,18 410,10 500,8" fill="none" stroke="rgba(14,154,173,0.08)" stroke-width="0.8"/>
+              <path d="M0,83 C80,76 160,56 260,44 C340,34 420,28 500,25" fill="none" stroke="rgba(14,154,173,0.08)" stroke-width="0.8"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div><!-- /graph -->
+
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN 3: INVESTMENT ACCOUNT ENTRY                       -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-investment-entry">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Add Investment Holding</div>
+          <div class="page-subtitle">Units mode with live market data · VWRP.L detected</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary" onclick="navigate('accounts')">Cancel</button>
+          <button class="btn btn-primary">Save Holding</button>
+        </div>
+      </div>
+
+      <div class="step-indicator">
+        <div class="step done"><div class="step-num">✓</div> Account</div>
+        <div class="step active"><div class="step-num">2</div> Holding Details</div>
+        <div class="step"><div class="step-num">3</div> Symbol Link</div>
+        <div class="step"><div class="step-num">4</div> History</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start">
+        <!-- Left: form -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <div class="card">
+            <div class="card-title">Basic Details</div>
+            <div class="form-group">
+              <label class="form-label">Holding Name <span class="required">*</span></label>
+              <input class="form-input" value="Vanguard FTSE All-World ETF (VWRP)" />
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Instrument Type</label>
+                <select class="form-input form-select">
+                  <option selected>ETF</option>
+                  <option>Index Fund</option>
+                  <option>Share / Stock</option>
+                  <option>Bond</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Currency</label>
+                <select class="form-input form-select">
+                  <option selected>GBP (£)</option>
+                  <option>USD ($)</option>
+                  <option>EUR (€)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Tracking Mode</div>
+            <div class="radio-group">
+              <div class="radio-option">
+                <div class="radio-dot"></div> Total Value
+              </div>
+              <div class="radio-option selected">
+                <div class="radio-dot"></div> Units × Price
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-accent">
+            <div class="card-title">Units & Price</div>
+            <div class="form-row" style="margin-bottom:8px">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Number of Units <span class="required">*</span></label>
+                <input class="form-input mono" value="142.5" />
+                <div class="form-hint">Supports decimals (e.g. 142.5)</div>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Price per Unit <span class="required">*</span></label>
+                <div class="input-group">
+                  <div class="input-prefix">£</div>
+                  <input class="form-input mono" value="97.34" />
+                </div>
+                <div class="form-hint">Live price · fetched 4m ago</div>
+              </div>
+            </div>
+            <!-- Computed value preview -->
+            <div class="computed-value-preview">
+              <div>
+                <div class="computed-label">Computed Value</div>
+                <div class="computed-equation">142.5 × £97.34</div>
+              </div>
+              <div class="computed-value">£13,871</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Assumed Growth Rate</div>
+            <div class="form-row" style="align-items:end">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Annual Growth Rate</label>
+                <div class="input-group">
+                  <input class="form-input mono" value="7.0" style="border-radius:6px 0 0 6px" />
+                  <div class="input-suffix">% p.a.</div>
+                </div>
+              </div>
+              <div style="padding-bottom:1px">
+                <button class="btn btn-secondary btn-sm" style="height:34px">Use CAGR from history ↗ 7.8%</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: symbol link + search -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <div class="card card-accent">
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+              Market Data Link
+              <div class="toggle-switch" onclick="this.querySelector('.toggle-track').classList.toggle('on')">
+                <div class="toggle-track on"><div class="toggle-thumb"></div></div>
+                <span class="toggle-label">Auto-refresh</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Search by name, ticker, or ISIN</label>
+              <div class="input-group">
+                <input class="form-input" value="VWRP" style="border-radius:6px 0 0 6px" />
+                <button class="btn btn-primary btn-sm" style="border-radius:0 6px 6px 0;border-left:none;height:34px">Search</button>
+              </div>
+            </div>
+
+            <!-- Search results -->
+            <div style="border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:12px">
+              <div class="symbol-search-result selected">
+                <div class="symbol-ticker">VWRP.L</div>
+                <div class="symbol-name">Vanguard FTSE All-World UCITS ETF (Acc)</div>
+                <span class="symbol-exch">LSE</span>
+                <span class="tag tag-etf" style="font-size:9px">ETF</span>
+              </div>
+              <div class="symbol-search-result">
+                <div class="symbol-ticker">VWRL.L</div>
+                <div class="symbol-name">Vanguard FTSE All-World UCITS ETF (Dist)</div>
+                <span class="symbol-exch">LSE</span>
+                <span class="tag tag-etf" style="font-size:9px">ETF</span>
+              </div>
+              <div class="symbol-search-result">
+                <div class="symbol-ticker">VT</div>
+                <div class="symbol-name">Vanguard Total World Stock ETF</div>
+                <span class="symbol-exch">NYSE</span>
+                <span class="tag tag-etf" style="font-size:9px">ETF</span>
+              </div>
+            </div>
+
+            <!-- Status -->
+            <div class="fetch-status ok">
+              <div class="fetch-dot"></div>
+              <strong>VWRP.L</strong>&nbsp;·&nbsp;£97.34&nbsp;·&nbsp;yfinance&nbsp;·&nbsp;fetched 4 min ago
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;padding:2px 8px">Refresh ↻</button>
+            </div>
+
+            <div style="margin-top:12px">
+              <div class="form-row-3">
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">ISIN (optional)</label>
+                  <input class="form-input mono" style="font-size:11px" value="IE00BK5BQT80" />
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Provider</label>
+                  <select class="form-input form-select">
+                    <option selected>yfinance</option>
+                    <option>Alpha Vantage</option>
+                    <option>Finnhub</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Refresh</label>
+                  <select class="form-input form-select">
+                    <option selected>On open</option>
+                    <option>Daily</option>
+                    <option>Weekly</option>
+                    <option>Manual</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mini price chart -->
+          <div class="card">
+            <div class="card-title" style="display:flex;justify-content:space-between">
+              Price History (VWRP.L)
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" style="padding:2px 7px;font-size:10px">1Y</button>
+                <button class="btn btn-ghost btn-sm" style="padding:2px 7px;font-size:10px;color:var(--teal)">5Y</button>
+                <button class="btn btn-ghost btn-sm" style="padding:2px 7px;font-size:10px">Max</button>
+              </div>
+            </div>
+            <div class="chart-placeholder" style="height:90px">
+              <svg width="100%" height="90" viewBox="0 0 400 90" preserveAspectRatio="none">
+                <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0e9aad" stop-opacity="0.3"/><stop offset="100%" stop-color="#0e9aad" stop-opacity="0"/></linearGradient></defs>
+                <path d="M0,75 C30,72 60,68 100,60 C140,52 170,62 200,54 C230,46 260,30 300,22 C330,16 360,12 400,8 L400,90 L0,90Z" fill="url(#pg)"/>
+                <path d="M0,75 C30,72 60,68 100,60 C140,52 170,62 200,54 C230,46 260,30 300,22 C330,16 360,12 400,8" fill="none" stroke="#0e9aad" stroke-width="1.5"/>
+                <text x="2" y="87" font-family="DM Mono" font-size="7" fill="#3d5166">2020</text>
+                <text x="165" y="87" font-family="DM Mono" font-size="7" fill="#3d5166">2022</text>
+                <text x="330" y="87" font-family="DM Mono" font-size="7" fill="#3d5166">2024</text>
+                <text x="345" y="14" font-family="DM Mono" font-size="8" fill="#0e9aad">£97.34</text>
+                <text x="2" y="80" font-family="DM Mono" font-size="8" fill="#3d5166">£44.20</text>
+                <circle cx="400" cy="8" r="3" fill="#0e9aad"/>
+              </svg>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-dim)">
+              <span>CAGR (5yr): <strong style="color:var(--green)">+17.1%</strong></span>
+              <span>Suggested growth rate: <strong style="color:var(--teal)">7.8% p.a.</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /investment-entry -->
+
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN 4: INCOME MANAGER                                 -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-income">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Income Sources</div>
+          <div class="page-subtitle">3 active · 2 future · All sources in base currency (GBP)</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary btn-sm">Import from CSV</button>
+          <button class="btn btn-primary btn-sm">+ Add Source</button>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab active">Timeline View</div>
+        <div class="tab">Table View</div>
+        <div class="tab">Tax Summary</div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title" style="display:flex;justify-content:space-between">
+          Income Timeline
+          <span style="font-size:10px;font-weight:400;color:var(--text-dim)">Each bar = one income source · width = duration</span>
+        </div>
+
+        <div class="year-axis">
+          <div class="year-tick">2020</div><div class="year-tick">2022</div>
+          <div class="year-tick">2024</div><div class="year-tick">2026</div>
+          <div class="year-tick">2028</div><div class="year-tick">2030</div>
+          <div class="year-tick">2035</div><div class="year-tick">2040</div>
+          <div class="year-tick">2045</div><div class="year-tick">2050</div>
+          <div class="year-tick">2055</div><div class="year-tick">2060</div>
+        </div>
+
+        <div class="income-timeline" style="margin-top:6px">
+          <div class="income-bar-row">
+            <div class="income-bar-label">Software Eng (PAYE)</div>
+            <div class="income-bar-track">
+              <div class="income-bar-fill" style="left:16%;width:52%;background:rgba(14,154,173,0.7)">£95,000 gross</div>
+            </div>
+            <div class="income-bar-amount">£95k/yr</div>
+          </div>
+          <div class="income-bar-row">
+            <div class="income-bar-label">Sarah — Marketing (PAYE)</div>
+            <div class="income-bar-track">
+              <div class="income-bar-fill" style="left:20%;width:44%;background:rgba(45,189,126,0.6)">£62,000 gross</div>
+            </div>
+            <div class="income-bar-amount">£62k/yr</div>
+          </div>
+          <div class="income-bar-row">
+            <div class="income-bar-label">Freelance Consulting</div>
+            <div class="income-bar-track">
+              <div class="income-bar-fill" style="left:28%;width:12%;background:rgba(212,168,67,0.65);font-size:9px">£15k</div>
+            </div>
+            <div class="income-bar-amount">£15k/yr</div>
+          </div>
+          <div class="income-bar-row">
+            <div class="income-bar-label">Vanguard SIPP Drawdown</div>
+            <div class="income-bar-track">
+              <div class="income-bar-fill" style="left:67%;width:25%;background:rgba(167,139,250,0.6)">4% drawdown</div>
+            </div>
+            <div class="income-bar-amount">Est. £46k</div>
+          </div>
+          <div class="income-bar-row">
+            <div class="income-bar-label">UK State Pension</div>
+            <div class="income-bar-track">
+              <div class="income-bar-fill" style="left:72%;width:21%;background:rgba(167,139,250,0.4);font-size:10px">£11,502/yr</div>
+            </div>
+            <div class="income-bar-amount">£11.5k/yr</div>
+          </div>
+          <div class="income-bar-row">
+            <div class="income-bar-label">Sarah — State Pension</div>
+            <div class="income-bar-track">
+              <div class="income-bar-fill" style="left:74%;width:19%;background:rgba(167,139,250,0.3);font-size:10px">£11,502/yr</div>
+            </div>
+            <div class="income-bar-amount">£11.5k/yr</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap">
+          <span class="annotation-pill info">● Working years: £157k gross / £112k net</span>
+          <span class="annotation-pill" style="background:rgba(167,139,250,0.15);color:#a78bfa">● Retirement (2042): £46k pension + £23k state = £69k</span>
+          <span class="annotation-pill warn">▲ Gap vs expenses: +£18k surplus at retirement start</span>
+        </div>
+      </div>
+
+      <!-- Income source form (add new) -->
+      <div class="card">
+        <div class="card-title">Edit Income Source — Software Eng. (PAYE)</div>
+        <div class="form-row">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Source Name <span class="required">*</span></label>
+            <input class="form-input" value="Software Engineering Salary"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Person</label>
+            <select class="form-input form-select"><option>James</option><option>Sarah</option></select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Gross Annual Amount</label>
+            <div class="input-group">
+              <div class="input-prefix">£</div>
+              <input class="form-input mono" value="95,000"/>
+            </div>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Frequency</label>
+            <select class="form-input form-select"><option>Annual</option><option>Monthly</option></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Currency</label>
+            <select class="form-input form-select"><option>GBP</option><option>USD</option></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Tax Treatment</label>
+            <select class="form-input form-select"><option>PAYE</option><option>Self-Employed</option><option>Pension Drawdown</option></select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Start Date</label>
+            <input class="form-input" type="date" value="2018-03-01"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">End Date <span style="color:var(--text-dim);font-size:10px">(leave blank = ongoing)</span></label>
+            <input class="form-input" type="date" value="2042-06-30"/>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:12px;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Savings Rate from this income</label>
+            <div class="input-group">
+              <input class="form-input mono" value="20" style="border-radius:6px 0 0 6px"/>
+              <div class="input-suffix">% → Vanguard ISA</div>
+            </div>
+            <div class="form-hint">Income does not auto-add to net worth — only specified savings/investment contributions are tracked</div>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Employer Pension Contribution</label>
+            <div class="input-group">
+              <input class="form-input mono" value="5" style="border-radius:6px 0 0 6px"/>
+              <div class="input-suffix">% → SIPP</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /income -->
+
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN 5: SCENARIOS                                      -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-scenarios">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Scenarios & What-If</div>
+          <div class="page-subtitle">Compare up to 4 scenarios on the same graph</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary btn-sm">+ From Template</button>
+          <button class="btn btn-primary btn-sm">+ New Scenario</button>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:14px">
+        <div class="scenario-card s-base active">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span class="tag tag-etf">Base</span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm btn-icon">✎</button>
+            </div>
+          </div>
+          <div class="scenario-name">Current Plan</div>
+          <div class="scenario-desc">Retire at 60, continue current savings rate, SIPP drawdown at 4% SWR</div>
+          <div class="scenario-metric"><span class="scenario-metric-label">Net worth @ 60</span> <span class="scenario-metric-val">£1.44m</span></div>
+          <div class="scenario-metric"><span class="scenario-metric-label">FIRE date</span> <span class="scenario-metric-val" style="color:var(--teal)">2047</span></div>
+          <div class="scenario-metric"><span class="scenario-metric-label">Coverage @ ret.</span> <span class="scenario-metric-val" style="color:var(--green)">134%</span></div>
+        </div>
+
+        <div class="scenario-card s-alt1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span class="tag tag-share">What-if</span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm btn-icon">✎</button>
+              <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--text-dim)">⊙</button>
+            </div>
+          </div>
+          <div class="scenario-name">Retire at 55</div>
+          <div class="scenario-desc">Stop working 5 yrs early, reduce expenses by 10%, part-time consulting to 58</div>
+          <div class="scenario-metric"><span class="scenario-metric-label">Net worth @ 55</span> <span class="scenario-metric-val">£1.09m</span></div>
+          <div class="scenario-metric"><span class="scenario-metric-label">vs Base @ 60</span> <span class="scenario-metric-val" style="color:var(--red)">−£350k</span></div>
+          <div class="scenario-metric"><span class="scenario-metric-label">Coverage @ ret.</span> <span class="scenario-metric-val" style="color:var(--gold)">108%</span></div>
+        </div>
+
+        <div class="scenario-card s-alt2">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span class="tag tag-pension">What-if</span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm btn-icon">✎</button>
+              <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--text-dim)">⊙</button>
+            </div>
+          </div>
+          <div class="scenario-name">Sell London House</div>
+          <div class="scenario-desc">Sell 2030, invest £200k equity into ISA + SIPP, move to lower cost area</div>
+          <div class="scenario-metric"><span class="scenario-metric-label">Net worth @ 60</span> <span class="scenario-metric-val">£1.62m</span></div>
+          <div class="scenario-metric"><span class="scenario-metric-label">vs Base</span> <span class="scenario-metric-val" style="color:var(--green)">+£180k</span></div>
+          <div class="scenario-metric"><span class="scenario-metric-label">FIRE date</span> <span class="scenario-metric-val" style="color:var(--green)">2044</span></div>
+        </div>
+
+        <div class="scenario-card" style="border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;min-height:170px"
+             onclick="navigate('scenarios')">
+          <span style="font-size:24px;color:var(--text-dim)">+</span>
+          <span style="font-size:12px;color:var(--text-dim)">Add scenario</span>
+          <span style="font-size:10px;color:var(--text-dim);text-align:center">Or choose from templates:<br>Survivor, Move Abroad, Annuity…</span>
+        </div>
+      </div>
+
+      <!-- Scenario comparison graph -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">Scenario Comparison — Net Worth to 2065</div>
+        <div class="chart-placeholder" style="height:200px">
+          <svg width="100%" height="200" viewBox="0 0 700 200" preserveAspectRatio="none">
+            <!-- Grid -->
+            <line x1="0" y1="160" x2="700" y2="160" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="120" x2="700" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="80" x2="700" y2="80" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="0" y1="40" x2="700" y2="40" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <!-- FIRE line -->
+            <line x1="0" y1="80" x2="700" y2="80" stroke="rgba(212,168,67,0.4)" stroke-width="1.5" stroke-dasharray="5,5"/>
+            <text x="655" y="74" font-family="DM Mono" font-size="8" fill="rgba(212,168,67,0.7)">FIRE</text>
+            <!-- Base (teal solid) -->
+            <path d="M50,180 C150,170 230,155 300,140 C380,124 440,95 500,72 C550,54 600,38 660,26 C680,23 695,21 700,20" fill="none" stroke="#0e9aad" stroke-width="2.5"/>
+            <!-- Retire 55 (gold dashed) -->
+            <path d="M50,180 C150,172 230,158 300,146 C375,133 430,108 490,88 C540,72 600,54 660,42 C680,39 695,36 700,35" fill="none" stroke="#d4a843" stroke-width="2" stroke-dasharray="7,5" opacity="0.85"/>
+            <!-- Sell house (purple dashed) -->
+            <path d="M50,180 C150,168 230,150 300,132 C375,112 440,82 500,58 C550,40 600,24 660,14 C680,11 695,9 700,8" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="5,4" opacity="0.8"/>
+            <!-- Current point -->
+            <circle cx="200" cy="158" r="4" fill="#0e9aad"/>
+            <line x1="200" y1="0" x2="200" y2="195" stroke="rgba(212,168,67,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="200" y="11" text-anchor="middle" font-family="DM Mono" font-size="7" fill="rgba(212,168,67,0.5)">Today</text>
+            <!-- Y labels -->
+            <text x="2" y="164" font-family="DM Mono" font-size="8" fill="#3d5166">£0</text>
+            <text x="2" y="124" font-family="DM Mono" font-size="8" fill="#3d5166">£500k</text>
+            <text x="2" y="84" font-family="DM Mono" font-size="8" fill="#3d5166">£1.2m</text>
+            <text x="2" y="44" font-family="DM Mono" font-size="8" fill="#3d5166">£2m</text>
+            <!-- X labels -->
+            <text x="40" y="195" font-family="DM Mono" font-size="8" fill="#3d5166">2022</text>
+            <text x="190" y="195" font-family="DM Mono" font-size="8" fill="#3d5166">2025</text>
+            <text x="330" y="195" font-family="DM Mono" font-size="8" fill="#3d5166">2035</text>
+            <text x="460" y="195" font-family="DM Mono" font-size="8" fill="#3d5166">2045</text>
+            <text x="620" y="195" font-family="DM Mono" font-size="8" fill="#3d5166">2060</text>
+          </svg>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)"><svg width="24" height="3"><line x1="0" y1="1.5" x2="24" y2="1.5" stroke="#0e9aad" stroke-width="2.5"/></svg> Base Plan (retire 60)</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)"><svg width="24" height="3"><line x1="0" y1="1.5" x2="24" y2="1.5" stroke="#d4a843" stroke-width="2" stroke-dasharray="5,4"/></svg> Retire at 55</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)"><svg width="24" height="3"><line x1="0" y1="1.5" x2="24" y2="1.5" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4,3"/></svg> Sell house (2030)</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)"><svg width="24" height="3"><line x1="0" y1="1.5" x2="24" y2="1.5" stroke="rgba(212,168,67,0.5)" stroke-width="1" stroke-dasharray="3,3"/></svg> FIRE threshold</span>
+        </div>
+      </div>
+    </div><!-- /scenarios -->
+
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN 6: REPORT EXPORT                                  -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-report">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Report Export</div>
+          <div class="page-subtitle">Compose a PDF · Export to Google Drive</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary btn-sm">Save Template</button>
+          <button class="btn btn-secondary btn-sm">Preview Structure</button>
+          <button class="btn btn-gold">⬆ Generate & Export to Drive</button>
+        </div>
+      </div>
+
+      <!-- Preset buttons -->
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <span style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;margin-right:4px">PRESETS:</span>
+        <button class="btn btn-secondary btn-sm">Quick Summary (~4 pg)</button>
+        <button class="btn btn-secondary btn-sm" style="border-color:var(--teal);color:var(--teal)">Full Annual Review (~18 pg)</button>
+        <button class="btn btn-secondary btn-sm">IFA / Adviser Pack (~28 pg)</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto">Custom…</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 280px;gap:14px;align-items:start">
+
+        <!-- Col 1: Section toggles -->
+        <div class="card">
+          <div class="card-title">Report Sections</div>
+          <div class="report-toggle-grid">
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">◈</div>
+              <div class="toggle-text"><div class="toggle-title">Cover Page</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">≡</div>
+              <div class="toggle-text"><div class="toggle-title">Exec. Summary</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">⊞</div>
+              <div class="toggle-text"><div class="toggle-title">Account Snapshots</div><div class="toggle-sub">All accounts, values</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">↑</div>
+              <div class="toggle-text"><div class="toggle-title">Income Sources</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">⚙</div>
+              <div class="toggle-text"><div class="toggle-title">Future Assumptions</div><div class="toggle-sub">Growth, inflation, tax</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">⟿</div>
+              <div class="toggle-text"><div class="toggle-title">Graphs</div><div class="toggle-sub">Selected in Graph panel</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">⊕</div>
+              <div class="toggle-text"><div class="toggle-title">Scenario Comparison</div></div>
+            </div>
+            <div class="report-section-toggle on">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <div class="toggle-icon">⊙</div>
+              <div class="toggle-text"><div class="toggle-title">Retirement Coverage</div></div>
+            </div>
+            <div class="report-section-toggle" style="opacity:0.5">
+              <div class="toggle-track" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px"></div></div>
+              <div class="toggle-icon">⌂</div>
+              <div class="toggle-text"><div class="toggle-title">Estate Summary</div><div class="toggle-sub">IHT, gifting</div></div>
+            </div>
+            <div class="report-section-toggle" style="opacity:0.5">
+              <div class="toggle-track" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px"></div></div>
+              <div class="toggle-icon">♡</div>
+              <div class="toggle-text"><div class="toggle-title">Survivor Analysis</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 2: Graph selector -->
+        <div class="card">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+            Analysis Graphs
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" style="font-size:10px">Select All</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--teal)">Recommended</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+
+            <div class="graph-card on">
+              <div class="graph-card-preview">
+                <svg width="100%" height="50" viewBox="0 0 100 50" preserveAspectRatio="none">
+                  <path d="M0,45 C20,40 40,30 60,18 C80,8 90,4 100,2" fill="none" stroke="#0e9aad" stroke-width="2"/>
+                  <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(212,168,67,0.5)" stroke-width="1" stroke-dasharray="3,3"/>
+                </svg>
+              </div>
+              <div class="graph-card-name">Total Net Worth</div>
+              <div style="display:flex;gap:4px;margin-top:4px">
+                <span class="annotation-pill info" style="font-size:9px;padding:1px 5px">MC bands</span>
+                <span class="annotation-pill info" style="font-size:9px;padding:1px 5px">FIRE line</span>
+              </div>
+            </div>
+
+            <div class="graph-card on">
+              <div class="graph-card-preview">
+                <svg width="100%" height="50" viewBox="0 0 100 50" preserveAspectRatio="none">
+                  <path d="M0,45 L100,45 L100,30 C80,28 60,22 40,18 C20,14 10,10 0,8Z" fill="rgba(212,168,67,0.2)"/>
+                  <path d="M0,45 L100,45 L100,8 C80,7 60,6 40,5 C20,4 10,3 0,2Z" fill="rgba(14,154,173,0.2)"/>
+                  <path d="M0,8 C10,3 20,4 40,5 C60,6 80,7 100,8" fill="none" stroke="#0e9aad" stroke-width="1.5"/>
+                  <path d="M0,45 C10,10 20,14 40,18 C60,22 80,28 100,30" fill="none" stroke="#d4a843" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="graph-card-name">Net Worth Breakdown</div>
+              <div style="margin-top:4px"><span class="annotation-pill info" style="font-size:9px;padding:1px 5px">Stacked by category</span></div>
+            </div>
+
+            <div class="graph-card on">
+              <div class="graph-card-preview">
+                <svg width="100%" height="50" viewBox="0 0 100 50" preserveAspectRatio="none">
+                  <path d="M0,40 C20,35 40,25 60,15 C80,7 90,4 100,3" fill="none" stroke="#2dbd7e" stroke-width="1.5"/>
+                  <path d="M0,42 C20,40 40,38 60,36 C80,34 90,32 100,35" fill="none" stroke="#e05252" stroke-width="1.5" stroke-dasharray="4,3"/>
+                </svg>
+              </div>
+              <div class="graph-card-name">Income vs Expenses</div>
+              <div style="margin-top:4px"><span class="annotation-pill" style="background:rgba(45,189,126,0.15);color:var(--green);font-size:9px;padding:1px 5px">Retirement only</span></div>
+            </div>
+
+            <div class="graph-card on">
+              <div class="graph-card-preview">
+                <svg width="100%" height="50" viewBox="0 0 100 50" preserveAspectRatio="none">
+                  <path d="M0,48 C10,46 20,44 30,40 C40,36 50,20 60,12 C70,6 80,3 100,1" fill="none" stroke="#a78bfa" stroke-width="2"/>
+                  <path d="M50,20 C60,14 70,8 80,4 L80,40 C70,44 60,46 50,48Z" fill="rgba(224,82,82,0.15)"/>
+                </svg>
+              </div>
+              <div class="graph-card-name">Pension Drawdown</div>
+              <div style="margin-top:4px"><span class="annotation-pill info" style="font-size:9px;padding:1px 5px">MC bands</span></div>
+            </div>
+
+            <div class="graph-card on">
+              <div class="graph-card-preview">
+                <svg width="100%" height="50" viewBox="0 0 100 50" preserveAspectRatio="none">
+                  <path d="M30,48 C40,40 50,15 70,4 C80,0 90,-2 100,-4 L100,50Z" fill="rgba(14,154,173,0.08)"/>
+                  <path d="M30,48 C40,44 50,28 70,15 C80,10 90,6 100,4" fill="none" stroke="#0e9aad" stroke-width="1" opacity="0.4"/>
+                  <path d="M30,48 C40,42 50,22 70,10 C80,5 90,2 100,1" fill="none" stroke="#0e9aad" stroke-width="2"/>
+                  <path d="M30,48 C40,46 50,35 70,24 C80,18 90,14 100,12" fill="none" stroke="#0e9aad" stroke-width="1" opacity="0.4"/>
+                </svg>
+              </div>
+              <div class="graph-card-name">Monte Carlo Fan</div>
+              <div style="margin-top:4px"><span class="annotation-pill" style="background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;padding:1px 5px">P10/P50/P90</span></div>
+            </div>
+
+            <div class="graph-card on">
+              <div class="graph-card-preview">
+                <svg width="100%" height="50" viewBox="0 0 100 50" preserveAspectRatio="none">
+                  <path d="M0,48 C20,42 40,30 60,18 C80,8 90,4 100,2" fill="none" stroke="#0e9aad" stroke-width="2"/>
+                  <path d="M0,48 C20,44 40,34 60,24 C80,14 90,10 100,8" fill="none" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="5,4"/>
+                  <path d="M0,48 C20,40 40,26 60,14 C80,5 90,2 100,0" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3"/>
+                </svg>
+              </div>
+              <div class="graph-card-name">Scenario Overlay</div>
+              <div style="margin-top:4px"><span class="annotation-pill info" style="font-size:9px;padding:1px 5px">3 scenarios</span></div>
+            </div>
+
+            <div class="graph-card" style="opacity:0.4">
+              <div class="graph-card-preview"></div>
+              <div class="graph-card-name">Portfolio Mix (Pie)</div>
+            </div>
+
+            <div class="graph-card" style="opacity:0.4">
+              <div class="graph-card-preview"></div>
+              <div class="graph-card-name">Inflation-Adj. View</div>
+            </div>
+
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="toggle-switch" style="margin-bottom:8px">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <span class="toggle-label">Include data table below each graph</span>
+            </div>
+            <div class="toggle-switch">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <span class="toggle-label">Show Monte Carlo bands (P10/P90)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Preview + export options -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="card">
+            <div class="card-title">Report Preview</div>
+            <div style="font-size:10px;color:var(--text-dim);margin-bottom:10px">Estimated ~18 pages</div>
+
+            <!-- TOC preview -->
+            <div style="border:1px solid var(--border);border-radius:6px;padding:10px;background:var(--navy-3)">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px">Contents</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Cover Page</span><span style="color:var(--text-dim)">1</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Executive Summary</span><span style="color:var(--text-dim)">2</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Account Snapshots</span><span style="color:var(--text-dim)">3–5</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Income Sources</span><span style="color:var(--text-dim)">6</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Future Assumptions</span><span style="color:var(--text-dim)">7–8</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Graphs (6)</span><span style="color:var(--text-dim)">9–15</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Scenario Comparison</span><span style="color:var(--text-dim)">16</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'DM Mono',monospace"><span style="color:var(--text)">Retirement Coverage</span><span style="color:var(--text-dim)">17–18</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Export Options</div>
+            <div class="form-group">
+              <label class="form-label">Filename</label>
+              <input class="form-input mono" style="font-size:11px" value="lifeledger_2025-03-08_annual"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Paper Size</label>
+              <select class="form-input form-select"><option>A4</option><option>Letter (US)</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Colour Scheme</label>
+              <select class="form-input form-select"><option>Navy &amp; Teal (default)</option><option>Warm (amber)</option><option>Monochrome</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Watermark</label>
+              <select class="form-input form-select"><option>None</option><option>CONFIDENTIAL</option><option>DRAFT</option></select>
+            </div>
+            <div class="toggle-switch" style="margin-top:8px">
+              <div class="toggle-track on" style="width:28px;height:14px;border-radius:7px"><div class="toggle-thumb" style="width:10px;height:10px;left:16px"></div></div>
+              <span class="toggle-label" style="font-size:11px">Generate shareable Drive link</span>
+            </div>
+
+            <div style="margin-top:12px;padding:10px;border-radius:6px;background:var(--teal-glow);border:1px solid var(--border-accent);font-size:10px;color:var(--text-dim)">
+              <div style="color:var(--teal);font-weight:600;margin-bottom:3px">📁 Export destination</div>
+              Google Drive → LifeLedger/exports/
+            </div>
+
+            <button class="btn btn-gold" style="width:100%;margin-top:10px;justify-content:center">
+              ⬆ Generate &amp; Export to Drive
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /report -->
+
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN: PORTFOLIO MIX (stub for nav)                    -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-portfolio">
+      <div class="page-header">
+        <div><div class="page-title">Portfolio Mix</div><div class="page-subtitle">Liquid breakdown · Total net worth composition</div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-title">Liquid Assets (£324,180)</div>
+          <div style="display:flex;align-items:center;gap:20px;padding:10px 0">
+            <div class="pie-ring" style="background: conic-gradient(#0e9aad 0deg 130deg, #d4a843 130deg 210deg, #2dbd7e 210deg 285deg, #a78bfa 285deg 340deg, #3d5166 340deg 360deg)"></div>
+            <div class="pie-legend">
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#0e9aad"></div> Index Funds / ETFs <span class="pie-legend-pct">36%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#d4a843"></div> Individual Shares <span class="pie-legend-pct">22%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#2dbd7e"></div> Cash / Savings <span class="pie-legend-pct">21%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#a78bfa"></div> Bonds <span class="pie-legend-pct">15%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#3d5166"></div> Other <span class="pie-legend-pct">6%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Total Net Worth (£842,340)</div>
+          <div style="display:flex;align-items:center;gap:20px;padding:10px 0">
+            <div class="pie-ring"></div>
+            <div class="pie-legend">
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#0e9aad"></div> Investments <span class="pie-legend-pct">32%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#d4a843"></div> Property (net) <span class="pie-legend-pct">22%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#a78bfa"></div> Pensions <span class="pie-legend-pct">22%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#2dbd7e"></div> Savings <span class="pie-legend-pct">15%</span></div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#3d5166"></div> Cash <span class="pie-legend-pct">9%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Holdings</div>
+        <table class="data-table">
+          <thead><tr><th>Holding</th><th>Type</th><th>Units</th><th>Price</th><th>Value</th><th>% Liquid</th><th>% Total</th><th>YTD</th></tr></thead>
+          <tbody>
+            <tr><td><strong>VWRP.L</strong><div style="font-size:10px;color:var(--text-dim)">Vanguard All-World ETF</div></td><td><span class="tag tag-etf">ETF</span></td><td class="mono dim">142.5</td><td class="mono">£97.34</td><td class="mono">£13,871</td><td class="mono">4.3%</td><td class="mono dim">1.6%</td><td class="positive">+8.2%</td></tr>
+            <tr><td><strong>AAPL</strong><div style="font-size:10px;color:var(--text-dim)">Apple Inc.</div></td><td><span class="tag tag-share">Share</span></td><td class="mono dim">25</td><td class="mono">$189.50</td><td class="mono">£3,820</td><td class="mono">1.2%</td><td class="mono dim">0.5%</td><td class="positive">+14.2%</td></tr>
+            <tr><td><strong>Vanguard LifeStrategy 80%</strong><div style="font-size:10px;color:var(--text-dim)">0P0000YXUZ.L</div></td><td><span class="tag tag-fund">Fund</span></td><td class="mono dim">3,420.15</td><td class="mono">£3.12</td><td class="mono">£10,671</td><td class="mono">3.3%</td><td class="mono dim">1.3%</td><td class="positive">+6.9%</td></tr>
+            <tr><td><strong>Halifax Cash ISA</strong></td><td><span class="tag tag-savings">Savings</span></td><td class="mono dim">—</td><td class="mono dim">4.85%</td><td class="mono">£42,800</td><td class="mono">13.2%</td><td class="mono dim">5.1%</td><td class="positive">+£2,180</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div><!-- /portfolio -->
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- SCREEN: PROPERTY (stub)                                  -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <div class="screen" id="screen-property">
+      <div class="page-header">
+        <div><div class="page-title">Property & Mortgages</div></div>
+        <div class="page-actions"><button class="btn btn-primary btn-sm">+ Add Property</button></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title" style="display:flex;justify-content:space-between">
+          London House
+          <span class="tag tag-property">Primary Residence</span>
+        </div>
+        <div class="grid-3" style="margin-bottom:14px">
+          <div><div class="form-label">Current Value</div><div style="font-family:'DM Mono',monospace;font-size:20px;color:var(--text)">£485,000</div></div>
+          <div><div class="form-label">Outstanding Mortgage</div><div style="font-family:'DM Mono',monospace;font-size:20px;color:var(--gold)">£285,000</div></div>
+          <div><div class="form-label">Net Equity</div><div style="font-family:'DM Mono',monospace;font-size:20px;color:var(--green)">£200,000</div></div>
+        </div>
+        <div class="section-divider"><div class="section-divider-line"></div><div class="section-divider-label">Mortgage Rate Periods</div><div class="section-divider-line"></div></div>
+        <div class="rate-period"><span class="rate-period-rate">1.89%</span><span class="rate-period-dates">2022-01-01 → 2027-01-01</span><span class="tag tag-etf" style="font-size:10px">Fixed</span><span class="rate-remove">×</span></div>
+        <div class="rate-period"><span class="rate-period-rate">4.50%</span><span class="rate-period-dates">2027-01-01 → Maturity (2048)</span><span class="tag tag-fund" style="font-size:10px">Variable (SVR assumed)</span><span class="rate-remove">×</span></div>
+        <button class="add-period-btn">+ Add Rate Period</button>
+        <div class="section-divider" style="margin-top:16px"><div class="section-divider-line"></div><div class="section-divider-label">Lump Sum Payoffs</div><div class="section-divider-line"></div></div>
+        <div class="rate-period"><span class="rate-period-rate">£20,000</span><span class="rate-period-dates">2026-06-01</span><span class="annotation-pill warn" style="font-size:10px">Planned</span><span class="rate-remove">×</span></div>
+        <button class="add-period-btn">+ Add Lump Sum Payment</button>
+      </div>
+    </div><!-- /property -->
+
+    <!-- Accounts screen stub -->
+    <div class="screen" id="screen-accounts">
+      <div class="page-header"><div><div class="page-title">Accounts</div><div class="page-subtitle">7 accounts · Last updated 8 Mar 2025</div></div><div class="page-actions"><button class="btn btn-primary btn-sm">+ Add Account</button></div></div>
+      <div class="card">
+        <table class="data-table">
+          <thead><tr><th>Account</th><th>Type</th><th>Value</th><th>Currency</th><th>Growth Rate</th><th>Holdings</th><th>Last Checkpoint</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><strong>Vanguard ISA</strong></td><td><span class="tag tag-isa">ISA</span></td><td class="mono">£184,320</td><td class="dim">GBP</td><td class="mono" style="color:var(--teal)">7.0%</td><td class="dim">4 holdings</td><td class="dim">Jan 2025</td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+            <tr><td><strong>Vanguard SIPP</strong></td><td><span class="tag tag-pension">SIPP</span></td><td class="mono">£182,400</td><td class="dim">GBP</td><td class="mono" style="color:var(--teal)">7.0%</td><td class="dim">2 holdings</td><td class="dim">Jan 2025</td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+            <tr><td><strong>Fidelity GIA</strong></td><td><span class="tag tag-etf">GIA</span></td><td class="mono">£52,180</td><td class="dim">GBP</td><td class="mono" style="color:var(--teal)">6.2%</td><td class="dim">6 holdings</td><td class="dim">Feb 2025</td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+            <tr><td><strong>Halifax Cash ISA</strong></td><td><span class="tag tag-savings">Cash ISA</span></td><td class="mono">£42,800</td><td class="dim">GBP</td><td class="mono" style="color:var(--gold)">4.85%</td><td class="dim">—</td><td class="dim">Mar 2025</td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Retirement screen stub -->
+    <div class="screen" id="screen-retirement">
+      <div class="page-header"><div><div class="page-title">Retirement Planner</div><div class="page-subtitle">Drawdown vs annuity · Income coverage · Expense planning</div></div></div>
+      <div class="grid-3" style="margin-bottom:14px">
+        <div class="stat-card teal"><div class="stat-label">Projected Retirement</div><div class="stat-value">2042</div><div class="stat-sub">Age 55 · 17 years away</div></div>
+        <div class="stat-card gold"><div class="stat-label">Pension Pot @ Retirement</div><div class="stat-value">£584,200</div><div class="stat-sub"><span class="stat-badge badge-teal">4% SWR → £23,368/yr</span></div></div>
+        <div class="stat-card green"><div class="stat-label">Income Coverage Ratio</div><div class="stat-value">134%</div><div class="stat-sub"><span class="stat-badge badge-green">£18k surplus/yr</span></div></div>
+      </div>
+      <div class="card"><div class="card-title">Pension — Drawdown Configuration (Vanguard SIPP)</div>
+        <div class="radio-group" style="margin-bottom:12px">
+          <div class="radio-option selected"><div class="radio-dot"></div> Drawdown (% rate)</div>
+          <div class="radio-option"><div class="radio-dot"></div> Drawdown (fixed £)</div>
+          <div class="radio-option"><div class="radio-dot"></div> Convert to Annuity</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="margin:0"><label class="form-label">Annual Drawdown Rate</label><div class="input-group"><input class="form-input mono" value="4.0" style="border-radius:6px 0 0 6px"/><div class="input-suffix">% SWR</div></div></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Drawdown Start Date</label><input class="form-input" type="date" value="2042-07-01"/></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Tax-Free Lump Sum</label><div class="input-group"><input class="form-input mono" value="25" style="border-radius:6px 0 0 6px"/><div class="input-suffix">% at start</div></div></div>
+        </div>
+      </div>
+    </div>
+
+  </main><!-- /main -->
+</div><!-- /app -->
+
+<div class="screen-label" id="screenLabel">screen: dashboard</div>
+
+<script>
+  const screens = ['dashboard','graph','investment-entry','income','scenarios','report','portfolio','property','accounts','retirement'];
+
+  function navigate(id) {
+    screens.forEach(s => {
+      const el = document.getElementById('screen-' + s);
+      const nav = document.getElementById('nav-' + s);
+      if (el) el.classList.toggle('active', s === id);
+      if (nav) nav.classList.toggle('active', s === id);
+    });
+    document.getElementById('screenLabel').textContent = 'screen: ' + id;
+    document.getElementById('main').scrollTop = 0;
+  }
+
+  // Crosshair interaction on the main chart
+  const chartEl = document.getElementById('mainChart');
+  if (chartEl) {
+    chartEl.addEventListener('mousemove', () => {});
+  }
+
+  // Toggle interactions
+  document.querySelectorAll('.toggle-switch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      const track = sw.querySelector('.toggle-track');
+      if (track) track.classList.toggle('on');
+    });
+  });
+
+  // Radio option selection
+  document.querySelectorAll('.radio-group').forEach(group => {
+    group.querySelectorAll('.radio-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        group.querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+      });
+    });
+  });
+
+  // Graph card toggles
+  document.querySelectorAll('.graph-card').forEach(card => {
+    card.addEventListener('click', () => {
+      card.classList.toggle('on');
+    });
+  });
+
+  // Report section toggles
+  document.querySelectorAll('.report-section-toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      toggle.classList.toggle('on');
+      toggle.style.opacity = toggle.classList.contains('on') ? '1' : '0.4';
+    });
+  });
+</script>
+</body>
+</html>

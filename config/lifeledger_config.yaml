@@ -1,0 +1,106 @@
+# ============================================================
+# LifeLedger — Main Application Configuration
+# Phase 1: Foundation
+# All monetary values in base_currency unless noted.
+# ============================================================
+
+app:
+  name: "LifeLedger"
+  version: "0.1.0"
+  base_currency: "GBP"
+  log_level: "INFO"           # DEBUG | INFO | WARNING | ERROR
+  log_file: "logs/lifeledger.log"
+  log_to_console: true
+  log_to_file: true
+
+# ── Projection settings ──────────────────────────────────────
+projection:
+  start_year: 2025
+  end_year: 2075
+  time_step: "annual"         # annual only in Phase 1
+
+# ── Inflation ────────────────────────────────────────────────
+inflation:
+  base_rate: 0.025            # 2.5% default CPI
+  low_rate: 0.015
+  high_rate: 0.040
+  # Optional period overrides — list of {start_year, end_year, rate}
+  periods: []
+
+# ── FX assumptions ───────────────────────────────────────────
+fx:
+  rates:
+    GBP_USD: 1.27
+    GBP_EUR: 1.17
+    GBP_ILS: 4.71
+  annual_drift:               # assumed FX drift per pair
+    GBP_USD: 0.0
+    GBP_EUR: 0.0
+
+# ── Monte Carlo ──────────────────────────────────────────────
+monte_carlo:
+  enabled: true
+  simulations: 1000
+  seed: 42                    # null for non-deterministic
+  growth_std_dev: 0.12        # annual std dev of equity returns
+  inflation_std_dev: 0.005
+  sequence_of_returns_risk: true
+  crash_window_years: 5       # years into retirement for sequence risk
+
+# ── Tax defaults ─────────────────────────────────────────────
+tax:
+  default_jurisdiction: "UK"
+  uk:
+    personal_allowance: 12570
+    basic_rate_limit: 50270
+    higher_rate_limit: 125140
+    basic_rate: 0.20
+    higher_rate: 0.40
+    additional_rate: 0.45
+    ni_primary_threshold: 12570
+    ni_upper_earnings: 50270
+    ni_class1_lower_rate: 0.12
+    ni_class1_upper_rate: 0.02
+    cgt_annual_exempt: 3000
+    cgt_basic_rate: 0.10
+    cgt_higher_rate: 0.20
+    isa_annual_allowance: 20000
+    sipp_annual_allowance: 60000
+    sipp_tax_free_lump_sum_pct: 0.25
+    lisa_annual_allowance: 4000
+    lisa_bonus_rate: 0.25
+  us_federal:
+    standard_deduction_single: 14600
+    standard_deduction_married: 29200
+    brackets_single:
+      - {limit: 11600,  rate: 0.10}
+      - {limit: 47150,  rate: 0.12}
+      - {limit: 100525, rate: 0.22}
+      - {limit: 191950, rate: 0.24}
+      - {limit: 243725, rate: 0.32}
+      - {limit: 609350, rate: 0.35}
+      - {limit: null,   rate: 0.37}
+    roth_ira_limit: 7000
+    traditional_401k_limit: 23000
+
+# ── Google Drive sync ────────────────────────────────────────
+drive:
+  enabled: false              # Phase 1: local only
+  sync_on_save: true
+  auto_sync_interval_minutes: 5
+  folder_name: "LifeLedger"
+  conflict_resolution: "prompt"  # prompt | keep_local | keep_remote
+
+# ── SQLite cache ─────────────────────────────────────────────
+database:
+  path: "data/lifeledger.db"
+  cache_market_prices: true
+  price_staleness_hours: 24
+
+# ── Calculation engine ───────────────────────────────────────
+engine:
+  apply_inflation_to_expenses: true
+  apply_inflation_to_income: false   # income growth set per source
+  default_growth_rate: 0.07
+  default_savings_rate: 0.20
+  pension_state_deferral_bonus_per_year: 0.01
