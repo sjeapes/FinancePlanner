@@ -1,0 +1,49 @@
+# ============================================================
+# LifeLedger — Scenario Template: Aggressive FIRE — Retire at 50
+# Diff from base: move retirement ages to 50/48, set lean FIRE
+# target at £1m with 4% SWR and £40k annual expenses.
+# Assumes higher savings rates are implemented via the base
+# income contribution routing — this diff only adjusts the
+# retirement ages and FIRE target.
+# ============================================================
+
+id: aggressive_fire
+name: "Aggressive FIRE — Retire at 50"
+description: "James retires at 50, Sarah at 48 — lean FIRE at £1m"
+is_base: false
+colour: "#a78bfa"
+
+people:
+  - id: "james"
+    name: "James"
+    date_of_birth: "1987-06-15"
+    retirement_age: 50
+    life_expectancy: 90
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 22
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0
+
+  - id: "sarah"
+    name: "Sarah"
+    date_of_birth: "1989-09-22"
+    retirement_age: 48
+    life_expectancy: 92
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 18
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0
+
+fire_target:
+  target_net_worth: 1000000
+  annual_expenses_target: 40000
+  swr: 0.04
+  fire_type: "lean_fire"

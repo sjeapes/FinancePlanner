@@ -1,0 +1,55 @@
+services:
+
+  # ── FastAPI backend ──────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: lifeledger-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro          # read-only config
+      - ./data:/app/data                 # scenarios, checkpoints, db, exports
+      - ./logs:/app/logs                 # log output
+    environment:
+      - LIFELEDGER_CONFIG=/app/config/lifeledger_config.yaml
+      - LIFELEDGER_DB=/app/data/lifeledger.db
+      - LIFELEDGER_LOG=/app/logs/lifeledger.log
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── React frontend (Vite dev server) ─────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: lifeledger-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - VITE_API_BASE=http://localhost:8000
+
+volumes: {}
+
+# ── Usage ──────────────────────────────────────────────────────
+# Development (recommended):
+#   cd FinancePlanner
+#   python -m uvicorn backend.main:app --reload --port 8000
+#   cd frontend && npm run dev
+#
+# Docker:
+#   docker compose up --build
+#
+# Cloudflare Tunnel / Raspberry Pi:
+#   Set LIFELEDGER_CONFIG, LIFELEDGER_DB, LIFELEDGER_LOG env vars
+#   and docker compose up -d

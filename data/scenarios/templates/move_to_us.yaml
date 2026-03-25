@@ -1,0 +1,20 @@
+# ============================================================
+# LifeLedger — Scenario Template: Move to US — Higher Earnings
+# Diff from base: adjust FIRE target to reflect higher earning
+# potential and higher cost of living in the US. Tax profiles
+# are not changed here (US tax profile switching requires
+# income source updates — see Phase 4 multi-jurisdiction work).
+# FIRE target: £1.2m at 4% SWR, £48k expenses.
+# ============================================================
+
+id: move_to_us
+name: "Move to US — Higher Earnings"
+description: "Relocation to US — higher expenses and FIRE target at £1.2m"
+is_base: false
+colour: "#2dbd7e"
+
+fire_target:
+  target_net_worth: 1200000
+  annual_expenses_target: 48000
+  swr: 0.04
+  fire_type: "fat_fire"

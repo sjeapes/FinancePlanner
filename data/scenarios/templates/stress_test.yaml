@@ -1,0 +1,23 @@
+# ============================================================
+# LifeLedger — Scenario Template: Stress Test — Market Crash 2026
+# Diff from base: inject a -£180k portfolio write-down event
+# at January 2026 to simulate a ~30% market crash applied to
+# the Vanguard ISA (approximate base value ~£600k).
+# Tests sequence-of-returns risk in early accumulation phase.
+# ============================================================
+
+id: stress_test
+name: "Stress Test — Market Crash 2026"
+description: "30% market crash in 2026 — portfolio write-down of £180k"
+is_base: false
+colour: "#e05252"
+
+life_events:
+  - id: "market_crash_2026"
+    name: "Market Crash — Portfolio Writedown"
+    event_type: "major_expense"
+    date: "2026-01-01"
+    amount: -180000
+    currency: "GBP"
+    affects_account_id: "vanguard_isa"
+    probability: 1.0

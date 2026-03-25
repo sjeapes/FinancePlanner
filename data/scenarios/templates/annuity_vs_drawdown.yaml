@@ -1,0 +1,19 @@
+# ============================================================
+# LifeLedger — Scenario Template: Annuity-Style Drawdown (3%)
+# Diff from base: lower the SWR to 3% and raise the FIRE target
+# to £1.5m — simulating a conservative annuity-like drawdown
+# strategy. Annual expenses £45k. fat_fire classification
+# reflects the higher capital requirement for the lower SWR.
+# ============================================================
+
+id: annuity_vs_drawdown
+name: "Annuity-Style Drawdown (3%)"
+description: "Conservative 3% SWR — annuity-style drawdown, £1.5m FIRE target"
+is_base: false
+colour: "#0e9aad"
+
+fire_target:
+  target_net_worth: 1500000
+  annual_expenses_target: 45000
+  swr: 0.03
+  fire_type: "fat_fire"

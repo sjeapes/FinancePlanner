@@ -1,0 +1,48 @@
+# ============================================================
+# LifeLedger — Scenario Template: Early Retirement at 55
+# Diff from base: adjust retirement ages for James and Sarah.
+# James retires at 55 (2042), Sarah at 53 (2042).
+# Applies a lean_fire target with lower SWR to reflect
+# longer retirement horizon.
+# ============================================================
+
+id: retire_at_55
+name: "Early Retirement at 55"
+description: "James retires at 55, Sarah at 53 — lean FIRE target at £1.5m"
+is_base: false
+colour: "#d4a843"
+
+people:
+  - id: "james"
+    name: "James"
+    date_of_birth: "1987-06-15"
+    retirement_age: 55
+    life_expectancy: 90
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 22
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0
+
+  - id: "sarah"
+    name: "Sarah"
+    date_of_birth: "1989-09-22"
+    retirement_age: 53
+    life_expectancy: 92
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 18
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0
+
+fire_target:
+  target_net_worth: 1500000
+  annual_expenses_target: 52500
+  swr: 0.035
+  fire_type: "lean_fire"

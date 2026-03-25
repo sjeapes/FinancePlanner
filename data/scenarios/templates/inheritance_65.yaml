@@ -1,0 +1,22 @@
+# ============================================================
+# LifeLedger — Scenario Template: Inheritance at James Age 65
+# Diff from base: add a £150k inheritance life event in 2052
+# when James turns 65. Proceeds are invested into the Vanguard
+# ISA. Probability 1.0 (deterministic for comparison purposes).
+# ============================================================
+
+id: inheritance_65
+name: "Inheritance at James Age 65"
+description: "£150k inheritance in 2052 (James age 65) invested into ISA"
+is_base: false
+colour: "#d4a843"
+
+life_events:
+  - id: "inheritance_2052"
+    name: "Inheritance"
+    event_type: "inheritance"
+    date: "2052-01-01"
+    amount: 150000
+    currency: "GBP"
+    affects_account_id: "vanguard_isa"
+    probability: 1.0

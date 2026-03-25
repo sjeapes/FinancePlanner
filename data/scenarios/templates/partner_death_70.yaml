@@ -1,0 +1,28 @@
+# ============================================================
+# LifeLedger — Scenario Template: Survivor — Sarah dies at 70
+# Diff from base: reduce Sarah's life_expectancy to 70 (2059).
+# The projection engine will stop applying Sarah's income and
+# expense contributions after her death year. This models the
+# financial impact on James as the surviving partner.
+# ============================================================
+
+id: partner_death_70
+name: "Survivor Scenario — Sarah at 70"
+description: "Sarah's life expectancy reduced to 70 — survivor impact on James"
+is_base: false
+colour: "#8fa3b8"
+
+people:
+  - id: "sarah"
+    name: "Sarah"
+    date_of_birth: "1989-09-22"
+    retirement_age: 60
+    life_expectancy: 70
+    tax_profile_id: "uk_standard"
+    state_pension:
+      eligible: true
+      qualifying_years: 18
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0

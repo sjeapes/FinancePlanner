@@ -371,6 +371,66 @@ files). The task is to convert them to a proper React + TypeScript application.
 Test: API endpoints return correct JSON for a known scenario; SQLite cache
 writes and reads price history correctly; Pydantic models validate correctly.
 
+#### ⚠️ Data Entry Gap — added 2026-03-13
+
+The original Phase 2 plan assumed scenario data would be edited as YAML files
+directly. This is impractical for regular use. A **Data Management screen**
+must be added so users can enter and edit all financial data through the UI.
+
+**New screen: `DataManagement` (add to sidebar between Dashboard and Timeline)**
+
+The screen is a tabbed editor with one tab per data category. Each tab lists
+existing items and has Add / Edit / Delete actions backed by the accounts API.
+
+Tabs and their content:
+- **People** — edit Person fields (DOB, retirement age, life expectancy) and
+  StatePension (qualifying years, weekly amount, start age)
+- **Income** — full IncomeForm with all IncomeSource fields: name, gross,
+  tax treatment (dropdown), owner (dropdown), start/end dates, growth rate,
+  contribution routing (list of destination → fraction pairs)
+- **Savings** — SavingsAccount editor: name, type, balance, rate periods table
+- **Investments** — InvestmentAccount editor + per-holding form (name, ticker,
+  tracking mode toggle, value/units+price, growth rate, symbol link)
+- **Pensions** — PensionFund editor: name, type, owner, value, growth rate,
+  employer contribution rate, drawdown config (mode, rate, TFLS)
+- **Property & Mortgage** — PropertyAsset + linked Mortgage editor (rate periods
+  table, lump sum payments table)
+- **Expenses** — ExpenseBucket list: name, annual amount, start/end, inflation-linked toggle
+- **Life Events** — LifeEvent list: name, date, amount, type (inflow/outflow),
+  target account
+
+**Form rules:**
+- Use `react-hook-form` v7 + `zod` v3 for all validation
+- Monetary inputs: number type, step=100, show £ prefix
+- Rate inputs: number type, step=0.001, show % suffix (display as %, store as decimal)
+- Date inputs: ISO date picker
+- All saves call the appropriate `PUT /api/accounts/{type}/{id}` or
+  `POST /api/accounts/{type}` endpoint
+- On save success: invalidate simulation cache (trigger re-run prompt)
+
+**New form components to build (replace current stubs):**
+- `IncomeForm.tsx` — full implementation with contribution routing sub-form
+- `PensionForm.tsx` — full implementation with DrawdownConfig sub-form
+- `MortgageForm.tsx` — full with RatePeriod table and LumpSumPayment table
+- `InvestmentForm.tsx` — full with per-holding rows and SymbolSearchWidget
+- `SavingsForm.tsx` — new: name, type, balance, InterestRatePeriod table
+- `PersonForm.tsx` — new: all Person + StatePension fields
+- `ExpenseForm.tsx` — new: ExpenseBucket fields
+- `LifeEventForm.tsx` — new: LifeEvent fields
+- `PropertyForm.tsx` — new: PropertyAsset fields
+- `SymbolSearchWidget.tsx` — ticker search input using `useSymbolSearch` hook,
+  shows dropdown of results, sets ticker + fetches current price on select
+- `HistoricalGrowthForm.tsx` — lets user override assumed_growth_rate from
+  historical data (shows yfinance-fetched CAGR for a given period)
+
+**FIRE Target editor** — add to RetirementPlanner screen:
+- Target net worth, SWR (%), annual expenses, FIRE type dropdown
+- Saved via `PUT /api/accounts/fire_target/primary`
+
+This data entry capability was missing from the original plan and is
+**required before Phase 3** so users can manage their own financial data
+rather than editing YAML directly.
+
 ---
 
 ### Phase 3 — Scenario Builder + FIRE Modelling (2–3 weeks)

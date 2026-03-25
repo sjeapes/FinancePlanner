@@ -1,0 +1,23 @@
+# ============================================================
+# LifeLedger — Scenario Template: Sell House 2030
+# Diff from base: add a life event for the London house sale
+# in June 2030. Nets £350k equity invested into Vanguard ISA.
+# The property and mortgage remain in the base model up to
+# the sale date; this event represents net proceeds only.
+# ============================================================
+
+id: sell_house_2030
+name: "Sell House 2030 — Invest Equity"
+description: "Sell London house in 2030, invest £350k net proceeds into ISA"
+is_base: false
+colour: "#2dbd7e"
+
+life_events:
+  - id: "house_sale_2030"
+    name: "London House Sale — Net Proceeds"
+    event_type: "sell_asset"
+    date: "2030-06-01"
+    amount: 350000
+    currency: "GBP"
+    affects_account_id: "vanguard_isa"
+    probability: 1.0
