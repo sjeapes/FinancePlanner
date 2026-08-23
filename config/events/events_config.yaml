@@ -1,0 +1,295 @@
+# =============================================================================
+# LifeLedger — Life Events Configuration
+# =============================================================================
+# Load with events.load_events_from_yaml().
+# Supported event_type values:
+#   property_sale, property_purchase, inheritance, lump_sum_income,
+#   major_expense, job_change, career_break, emigration,
+#   care_cost_start, care_cost_end, state_pension_start,
+#   partner_death, business_start, redundancy, asset_contribution
+#
+# Set enabled: false to suppress an event without removing it.
+# probability < 1.0 is modelled at full expected value by default;
+# set apply_probability_scaling: true on the engine for Monte Carlo.
+# Dates ISO 8601: YYYY-MM-DD.  Monetary values in the configured currency.
+# =============================================================================
+
+events:
+
+  # ---------------------------------------------------------------------------
+  # One-off Expenses
+  # ---------------------------------------------------------------------------
+
+  - event_id: car_purchase_2027
+    event_type: major_expense
+    label: "New Car Purchase"
+    year: 2027
+    enabled: true
+    probability: 1.0
+    currency: GBP
+    amount: 35000.00
+    source_account_id: james_current_account
+    notes: "Replace main family car. Budget set in 2025 money."
+
+  - event_id: kitchen_renovation_2029
+    event_type: major_expense
+    label: "Kitchen Renovation"
+    year: 2029
+    enabled: true
+    probability: 0.80
+    currency: GBP
+    amount: 22000.00
+    source_account_id: james_current_account
+    notes: "80% probability — could defer to 2031 if market drops."
+
+  - event_id: university_fees_2043
+    event_type: major_expense
+    label: "Child University Fees (3 years)"
+    year: 2043
+    enabled: true
+    probability: 0.90
+    currency: GBP
+    amount: 45000.00
+    source_account_id: james_current_account
+    notes: "Covers approx £15k/yr tuition + living for 3 years."
+
+  # ---------------------------------------------------------------------------
+  # Property
+  # ---------------------------------------------------------------------------
+
+  - event_id: property_sale_2032
+    event_type: property_sale
+    label: "Sell London House (Upsize)"
+    year: 2032
+    enabled: true
+    probability: 0.70
+    currency: GBP
+    property_id: london_house
+    expected_proceeds: 650000.00
+    mortgage_outstanding: 185000.00
+    cgt_exempt: true           # Principal Private Residence relief applies
+    cgt_cost_basis: 0.0        # Not needed when exempt
+    target_account_id: james_current_account
+    notes: "70% probability — depends on family size decision."
+
+  - event_id: property_purchase_2032
+    event_type: property_purchase
+    label: "Buy Larger House (2032)"
+    year: 2032
+    enabled: true
+    probability: 0.70
+    currency: GBP
+    property_id: london_house_2
+    purchase_price: 800000.00
+    deposit_amount: 200000.00   # From sale proceeds
+    stamp_duty: 23750.00        # SDLT on £800k (second tranche rates)
+    source_account_id: james_current_account
+    notes: "Linked to property_sale_2032. Model together."
+
+  # ---------------------------------------------------------------------------
+  # Inheritances
+  # ---------------------------------------------------------------------------
+
+  - event_id: inheritance_2038
+    event_type: inheritance
+    label: "Parental Inheritance (James)"
+    year: 2038
+    enabled: true
+    probability: 0.75
+    currency: GBP
+    amount: 80000.00
+    is_taxable: false
+    target_account_id: vanguard_isa
+    notes: "75% probability; amount estimated. Deposit to ISA to shelter future growth."
+
+  - event_id: inheritance_2040
+    event_type: inheritance
+    label: "Parental Inheritance (Sarah)"
+    year: 2040
+    enabled: true
+    probability: 0.60
+    currency: GBP
+    amount: 55000.00
+    is_taxable: false
+    target_account_id: vanguard_isa
+    notes: "60% probability; lower estimate."
+
+  # ---------------------------------------------------------------------------
+  # Income Changes
+  # ---------------------------------------------------------------------------
+
+  - event_id: james_job_change_2031
+    event_type: job_change
+    label: "James Career Change (Tech → Consultancy)"
+    year: 2031
+    enabled: true
+    probability: 0.60
+    currency: GBP
+    remove_income_id: james_salary
+    add_income:
+      source_id: james_consultancy
+      name: "Consultancy Income (James)"
+      person_id: james
+      gross_annual: 110000.00
+      currency: GBP
+      tax_treatment: self_employed
+      start_date: 2031-01-01
+      annual_growth_rate: 0.04
+    notes: "Move to self-employed consulting."
+
+  - event_id: sarah_return_to_work_2030
+    event_type: job_change
+    label: "Sarah Returns to Work (Full-time)"
+    year: 2030
+    enabled: true
+    probability: 1.0
+    currency: GBP
+    remove_income_id: sarah_parttime
+    add_income:
+      source_id: sarah_salary_ft
+      name: "Sarah Full-Time Salary"
+      person_id: sarah
+      gross_annual: 62000.00
+      currency: GBP
+      tax_treatment: PAYE
+      start_date: 2030-01-01
+      annual_growth_rate: 0.03
+    notes: "Children now in secondary school."
+
+  - event_id: james_career_break_2035
+    event_type: career_break
+    label: "James Sabbatical (2035)"
+    year: 2035
+    enabled: false             # Disabled — planning scenario only
+    probability: 0.30
+    currency: GBP
+    remove_income_id: james_consultancy
+    duration_years: 1
+    resume_gross_annual: 105000.00
+    add_income:
+      source_id: james_consultancy      # Reused after break
+      name: "Consultancy Income (James)"
+      person_id: james
+      gross_annual: 105000.00
+      currency: GBP
+      tax_treatment: self_employed
+      start_date: 2036-01-01
+    notes: "One-year sabbatical. Disabled by default."
+
+  # ---------------------------------------------------------------------------
+  # State Pensions
+  # ---------------------------------------------------------------------------
+
+  - event_id: james_state_pension_2052
+    event_type: state_pension_start
+    label: "James State Pension Starts"
+    year: 2052
+    enabled: true
+    probability: 1.0
+    currency: GBP
+    person_id: james
+    annual_amount: 11502.00    # Full new State Pension 2024/25 rate
+    deferral_weeks: 0          # No deferral
+    notes: "State Pension Age 67 (born 1985). Update rate annually."
+
+  - event_id: sarah_state_pension_2054
+    event_type: state_pension_start
+    label: "Sarah State Pension Starts"
+    year: 2054
+    enabled: true
+    probability: 1.0
+    currency: GBP
+    person_id: sarah
+    annual_amount: 11502.00
+    deferral_weeks: 0
+    notes: "State Pension Age 67 (born 1987)."
+
+  # ---------------------------------------------------------------------------
+  # Care Costs
+  # ---------------------------------------------------------------------------
+
+  - event_id: care_costs_start_2065
+    event_type: care_cost_start
+    label: "Long-Term Care Costs Begin"
+    year: 2065
+    enabled: true
+    probability: 0.55
+    currency: GBP
+    expense_spec:
+      bucket_id: care_costs
+      name: "Long-Term Care Costs"
+      annual_amount: 48000.00    # UK average residential care c. £45-55k/yr
+      currency: GBP
+      inflation_linked: true
+      inflation_rate: 0.04       # Care cost inflation runs higher than CPI
+      applies_to:
+        - james
+        - sarah
+      start_date: 2065-01-01
+    notes: "55% probability estimate. UK average residential care cost."
+
+  - event_id: care_costs_end_2075
+    event_type: care_cost_end
+    label: "Remove Care Cost Bucket"
+    year: 2075
+    enabled: true
+    probability: 1.0
+    remove_expense_id: care_costs
+    notes: "Remove at modelling horizon — replace with survivor scenario if needed."
+
+  # ---------------------------------------------------------------------------
+  # Lump-Sum Windfalls
+  # ---------------------------------------------------------------------------
+
+  - event_id: redundancy_payment_2033
+    event_type: redundancy
+    label: "Redundancy (Sarah)"
+    year: 2033
+    enabled: false             # Planning scenario only
+    probability: 0.20
+    currency: GBP
+    remove_income_id: sarah_salary_ft
+    amount: 45000.00
+    is_taxable: true           # Amount above £30k is taxable
+    target_account_id: james_current_account
+    notes: "Redundancy scenario. First £30k tax-free; remainder taxable."
+
+  - event_id: bonus_lump_sum_2028
+    event_type: lump_sum_income
+    label: "Large Bonus Payment (2028)"
+    year: 2028
+    enabled: true
+    probability: 0.85
+    currency: GBP
+    amount: 40000.00
+    is_taxable: true
+    target_account_id: vanguard_sipp
+    notes: "Exceptional bonus — deposited into SIPP for tax efficiency."
+
+  # ---------------------------------------------------------------------------
+  # Asset Contributions
+  # ---------------------------------------------------------------------------
+
+  - event_id: isa_top_up_2026
+    event_type: asset_contribution
+    label: "ISA Top-Up (Year-End)"
+    year: 2026
+    enabled: true
+    probability: 1.0
+    currency: GBP
+    amount: 20000.00
+    target_account_id: vanguard_isa
+    notes: "Full ISA allowance in addition to monthly contributions."
+
+  # ---------------------------------------------------------------------------
+  # Emigration (Planning scenario — disabled by default)
+  # ---------------------------------------------------------------------------
+
+  - event_id: emigration_portugal_2040
+    event_type: emigration
+    label: "Move to Portugal (NHR)"
+    year: 2040
+    enabled: false
+    probability: 0.15
+    new_jurisdiction: generic
+    notes: "Explore Portugal NHR tax regime. Disabled — placeholder."
