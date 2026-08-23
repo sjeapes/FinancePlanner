@@ -1,0 +1,222 @@
+# =============================================================================
+# LifeLedger — Pension Configuration
+# =============================================================================
+# One file per pension pot.  Load with pension.load_pension_config_from_yaml().
+# All monetary values in the currency specified below.
+# Rates are decimals: 0.07 = 7%
+# Dates are ISO 8601: YYYY-MM-DD
+# =============================================================================
+
+pension:
+
+  # ---------------------------------------------------------------------------
+  # Identity
+  # ---------------------------------------------------------------------------
+  pension_id: vanguard_sipp_stephen      # Unique key — used as FK in projections
+  label: "Vanguard SIPP (Stephen)"
+  person_id: stephen
+  pension_type: sipp                     # 'sipp' | 'workplace' | '401k' |
+                                         # 'ira_traditional' | 'ira_roth' |
+                                         # 'db' | 'generic'
+  currency: GBP
+  inside_estate: false                   # UK SIPPs typically outside estate for IHT
+  enabled: true
+  notes: "Primary self-invested personal pension. Vanguard platform, global
+    equity index fund. Target: drawdown from age 57 (earliest UK access from
+    2028 rules)."
+
+  # ---------------------------------------------------------------------------
+  # Current valuation
+  # ---------------------------------------------------------------------------
+  current_value: 182400.00              # Fund value as of valuation_date
+  valuation_date: 2025-01-01
+  person_dob: 1985-06-15               # Used for age-gated logic (RMDs, MPAA)
+
+  # ---------------------------------------------------------------------------
+  # Annual management charge
+  # ---------------------------------------------------------------------------
+  # Platform fee + underlying fund OCF combined.  Applied before growth each year.
+  # Vanguard platform: 0.15% cap + fund OCF ~0.12% ≈ 0.27% total
+  annual_fee_rate: 0.0027              # 0.27% total AMC
+
+  # ---------------------------------------------------------------------------
+  # Contribution periods
+  # ---------------------------------------------------------------------------
+  # Multiple periods allow salary changes and employer-match tier changes.
+  # employee_annual and employer_annual are gross totals for the calendar year.
+  # employee_relief_rate: tax relief claimed at source (basic rate = 0.20).
+  # ---------------------------------------------------------------------------
+  contribution_periods:
+
+    - label: "Current contribution level"
+      start_date: 2025-01-01
+      end_date: 2030-12-31             # Until planned job change
+      employee_annual: 18000.00        # £1,500/month employee gross
+      employer_annual:  6000.00        # 5% employer match on £120k salary
+      employee_relief_rate: 0.40       # Higher-rate taxpayer gets 40% relief
+      notes: "Includes salary-sacrifice arrangement."
+
+    - label: "Post job-change (reduced salary)"
+      start_date: 2031-01-01
+      end_date: 2040-12-31
+      employee_annual: 12000.00
+      employer_annual:  4000.00
+      employee_relief_rate: 0.20
+      notes: "Assumed part-time / career change from 2031."
+
+    - label: "Final accumulation years"
+      start_date: 2041-01-01
+      end_date: 2042-12-31             # Drawdown starts 2043
+      employee_annual: 8000.00
+      employer_annual: 2000.00
+      employee_relief_rate: 0.20
+      notes: "Winding down contributions pre-retirement."
+
+  # ---------------------------------------------------------------------------
+  # Growth periods
+  # ---------------------------------------------------------------------------
+  # Allows a glide path: aggressive equities early → conservative near retirement.
+  # annual_rate is the assumed gross real-terms return before fees.
+  # ---------------------------------------------------------------------------
+  growth_periods:
+
+    - label: "Growth phase — global equity index"
+      start_date: 2025-01-01
+      end_date: 2037-12-31
+      annual_rate: 0.070               # 7.0% gross nominal
+      notes: "80% global equity / 20% bonds. Historical MSCI World avg ~10%
+        nominal; 7% is conservative real-terms estimate."
+
+    - label: "Glide path — reducing equity exposure"
+      start_date: 2038-01-01
+      end_date: 2042-12-31
+      annual_rate: 0.055               # 5.5% as bonds allocation increases
+      notes: "Moving to 60/40 in the 5 years before drawdown."
+
+    - label: "Drawdown phase — balanced / income-oriented"
+      start_date: 2043-01-01
+      end_date: null                   # Open-ended through retirement
+      annual_rate: 0.045               # 4.5% net of inflation during drawdown
+      notes: "Conservative drawdown portfolio. Fund continues to grow on
+        un-drawn balance."
+
+  # ---------------------------------------------------------------------------
+  # Drawdown configuration
+  # ---------------------------------------------------------------------------
+  drawdown_config:
+
+    mode: percentage                   # 'percentage' | 'fixed_amount' | 'fixed_real'
+
+    # Used when mode == 'percentage'
+    annual_drawdown_rate: 0.040        # 4% SWR — classic 'safe' withdrawal rate
+
+    # Used when mode == 'fixed_amount' or 'fixed_real'
+    annual_drawdown_amount: 0.00       # Set > 0 if using fixed modes
+    inflation_rate: 0.025              # Annual uplift for 'fixed_real' mode
+
+    # UK tax-free cash (PCLS)
+    apply_pcls: true                   # Take 25% tax-free lump sum at drawdown start
+    pcls_fraction: 0.25                # Maximum 25%. Take less if not needed immediately.
+
+    drawdown_start_date: 2043-01-01   # Age 57 (earliest UK access)
+    drawdown_end_date: null           # Run until fund exhausted or projection end
+
+    # Safety floor — stop drawdown if fund falls below this amount
+    # Useful to keep a residual estate value or annuity-conversion buffer
+    min_balance: 0.00                 # 0 = draw until empty
+
+    notes: "4% SWR with PCLS in year 1. Review annually."
+
+  # ---------------------------------------------------------------------------
+  # Annuity configuration
+  # ---------------------------------------------------------------------------
+  # Set enabled: true to model conversion of part or all of the fund to an
+  # annuity on conversion_date.  Disable to model pure drawdown.
+  annuity_config:
+
+    enabled: false                     # Set true to model annuity conversion
+    conversion_date: null              # e.g. 2060-01-01
+    conversion_fraction: 1.0          # Fraction of remaining fund to convert
+                                       # (1.0 = full conversion)
+
+    # annuity_rate_per_100k: £/yr of income per £100,000 fund converted.
+    # Example: 5200 means £5,200/yr per £100k → 5.2% annuity rate.
+    # UK market rates vary by age, type, and insurer.  Update at conversion time.
+    annuity_rate_per_100k: 5200.00
+
+    annuity_type: level                # 'level' | 'inflation_linked' | 'joint_life'
+    inflation_rate: 0.025              # Escalation if annuity_type == 'inflation_linked'
+    joint_life_fraction: 0.50          # Survivor's fraction if 'joint_life'
+    guarantee_years: 5                 # Guarantee period (pays estate if early death)
+
+    notes: "Disabled — using pure drawdown strategy. Re-enable to compare
+      annuity vs drawdown scenarios."
+
+  # ---------------------------------------------------------------------------
+  # Annual allowance & carry-forward
+  # ---------------------------------------------------------------------------
+  allowance_config:
+
+    jurisdiction: uk
+    annual_allowance: 60000.00         # UK 2024/25 annual allowance
+    money_purchase_annual_allowance: 10000.00  # Triggered after first flexible access
+
+    carry_forward_years: 3             # UK allows 3 prior tax years
+    prior_year_unused:                 # Unused allowance from prior years (£)
+      2022: 12000.00                   # Year 2022: £12k unused
+      2023: 8000.00                    # Year 2023: £8k unused
+      2024: 5000.00                    # Year 2024: £5k unused
+
+    # US-specific (ignored for UK pensions)
+    rmd_start_age: 73                  # SECURE 2.0 — RMDs from age 73
+    rmd_table: uniform_lifetime        # 'uniform_lifetime' | 'joint_life'
+
+    enabled: true                      # Set false to skip allowance checking
+    notes: "Prior years populated from HMRC records. Update each April."
+
+
+# =============================================================================
+# Additional example: US 401(k) configuration
+# =============================================================================
+# Uncomment and save as a separate file for US pension pots.
+#
+# pension:
+#   pension_id: fidelity_401k_stephen
+#   label: "Fidelity 401(k) (Stephen)"
+#   person_id: stephen
+#   pension_type: 401k
+#   currency: USD
+#   inside_estate: true               # 401k IS inside the estate
+#   current_value: 95000.00
+#   valuation_date: 2025-01-01
+#   person_dob: 1985-06-15
+#   annual_fee_rate: 0.0010           # Low-cost index fund
+#
+#   contribution_periods:
+#     - label: "Current 401k contributions"
+#       start_date: 2025-01-01
+#       end_date: 2035-12-31
+#       employee_annual: 23000.00     # 2024 IRS 401k limit (+ catch-up from 50)
+#       employer_annual: 6000.00      # 3% match on $200k salary
+#       employee_relief_rate: 0.22    # US 22% marginal rate
+#
+#   growth_periods:
+#     - label: "Target-date 2045 fund"
+#       start_date: 2025-01-01
+#       end_date: null
+#       annual_rate: 0.065
+#
+#   drawdown_config:
+#     mode: fixed_real
+#     annual_drawdown_amount: 40000.00
+#     inflation_rate: 0.030
+#     apply_pcls: false               # No PCLS in US — entire withdrawal taxable
+#     pcls_fraction: 0.0
+#     drawdown_start_date: 2055-01-01
+#
+#   allowance_config:
+#     jurisdiction: us
+#     annual_allowance: 69000.00      # 2024 total 401k limit (employee + employer)
+#     rmd_start_age: 73
+#     rmd_table: uniform_lifetime
+#     enabled: true
