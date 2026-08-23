@@ -1,0 +1,131 @@
+# =============================================================================
+# LifeLedger — Tax Wrappers Configuration
+# =============================================================================
+# Load with tax_wrappers.load_tax_wrappers_config().
+# This file allows per-deployment overrides of the built-in wrapper rules
+# and sets CGT tracking parameters and FX rates.
+#
+# The built-in defaults cover all standard wrapper types for UK, US, and
+# Ireland.  Only add entries here when you need to override a default.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Wrapper overrides
+# ---------------------------------------------------------------------------
+# Override any built-in wrapper's tax rules.  Only specify the fields you
+# wish to change — unspecified fields inherit the built-in defaults.
+# Leave this section empty ({}) to use all built-in rules unchanged.
+# ---------------------------------------------------------------------------
+wrapper_overrides:
+
+  # Example: future rate change — SIPP contribution limit raised
+  # Uncomment and update when HMRC changes the annual allowance.
+  # - wrapper_type: SIPP
+  #   contribution_limit_annual: 65000.00  # if allowance rises from £60k
+  #   contribution_relief_rate: 0.20
+  #   growth_taxable: false
+  #   withdrawal_taxable: true
+  #   pcls_fraction: 0.25
+  #   jurisdiction: UK
+  #   notes: "Updated limit for 2026/27 tax year."
+
+  # Example: GIA with custom dividend tax rate override
+  # - wrapper_type: GIA
+  #   growth_taxable: true
+  #   growth_tax_rate: 0.0875          # UK dividend basic rate 8.75%
+  #   cgt_applicable: true
+  #   jurisdiction: UK
+  #   notes: "Dividend income taxed at 8.75% for basic-rate taxpayer."
+
+  # Example: US Brokerage — 0% long-term CG rate for lower income years
+  # - wrapper_type: Brokerage_US
+  #   growth_taxable: true
+  #   growth_tax_rate: 0.0             # 0% for income < $47k (2024)
+  #   cgt_applicable: true
+  #   long_term_cg_threshold_months: 12
+  #   jurisdiction: US
+  #   notes: "Override for years projected below the 0% CG threshold."
+
+
+# ---------------------------------------------------------------------------
+# CGT tracker settings
+# ---------------------------------------------------------------------------
+# Controls the CGTTracker used by the engine for GIA / Brokerage_US accounts.
+# Update these annually to reflect current HMRC / IRS rules.
+# ---------------------------------------------------------------------------
+cgt:
+
+  # UK annual CGT exemption (Annual Exempt Amount)
+  # 2022/23: £12,300 | 2023/24: £6,000 | 2024/25: £3,000
+  annual_exemption: 3000.00
+
+  # UK CGT rates — non-residential property assets
+  basic_rate:   0.10          # Basic rate band: 10%
+  higher_rate:  0.20          # Higher rate band: 20%
+
+  # UK CGT rates — residential property assets
+  residential_basic_rate:  0.18   # 18% (reduced from 24% for higher rate in Oct 2024)
+  residential_higher_rate: 0.24   # 24%
+
+  # US long-term capital gains rates (for Brokerage_US accounts)
+  # These override growth_tax_rate in the wrapper definition if set here.
+  # us_ltcg_rate_0pct_threshold:  47025   # 2024: income below this → 0% LTCG
+  # us_ltcg_rate_15pct_threshold: 518900  # 2024: up to this → 15% LTCG
+  # us_ltcg_rate_20pct_above: true        # above threshold → 20%
+
+  # Carry realised losses forward to offset future gains
+  carry_losses: true
+
+  # Optional: override CGT tax year start/end (default: UK April 5 / April 6)
+  # For US use January 1 / December 31.
+  # tax_year_start_month: 4
+  # tax_year_start_day: 6
+
+
+# ---------------------------------------------------------------------------
+# FX rates
+# ---------------------------------------------------------------------------
+# Used by FXManager for multi-currency account reporting.
+# annual_drift: expected annual rate change (base appreciates vs quote).
+#   Positive  = base currency strengthens (e.g. GBP/USD 0.01 → GBP gains)
+#   Negative  = base currency weakens
+#   0.0       = spot rate held constant (conservative / no-view assumption)
+# Update spot_rate and rate_date whenever you want fresh rates.
+# ---------------------------------------------------------------------------
+fx_rates:
+
+  - base_currency: GBP
+    quote_currency: USD
+    spot_rate: 1.2725          # 1 GBP = 1.2725 USD (as of rate_date)
+    annual_drift: 0.0          # No view — hold constant
+    rate_date: 2025-01-01
+    notes: "GBP/USD. No drift assumption — update spot annually."
+
+  - base_currency: GBP
+    quote_currency: EUR
+    spot_rate: 1.1720          # 1 GBP = 1.172 EUR
+    annual_drift: 0.0
+    rate_date: 2025-01-01
+    notes: "GBP/EUR."
+
+  - base_currency: USD
+    quote_currency: GBP
+    spot_rate: 0.7858          # Derived automatically; listed for clarity
+    annual_drift: 0.0
+    rate_date: 2025-01-01
+    notes: "USD/GBP (inverse of GBP/USD). Auto-derived if omitted."
+
+  - base_currency: EUR
+    quote_currency: GBP
+    spot_rate: 0.8532
+    annual_drift: 0.0
+    rate_date: 2025-01-01
+    notes: "EUR/GBP."
+
+  # Template for additional pairs — uncomment as needed:
+  # - base_currency: GBP
+  #   quote_currency: CAD
+  #   spot_rate: 1.74
+  #   annual_drift: 0.0
+  #   rate_date: 2025-01-01
+  #   notes: ""
