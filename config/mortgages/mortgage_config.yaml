@@ -1,0 +1,141 @@
+# =============================================================================
+# LifeLedger — Mortgage & Property Configuration
+# =============================================================================
+# One file per mortgage.  Load with mortgage.load_mortgage_config_from_yaml().
+# All monetary values in the currency specified below.
+# Rates are decimals: 0.035 = 3.5%
+# Dates are ISO 8601: YYYY-MM-DD
+# =============================================================================
+
+mortgage:
+
+  # ---------------------------------------------------------------------------
+  # Identity
+  # ---------------------------------------------------------------------------
+  mortgage_id: primary_residence          # Unique key — used as FK in projections
+  label: "Main Residence Mortgage"        # Display name in the UI
+  property_id: primary_residence          # Must match a property config below
+  currency: GBP
+  enabled: true
+  notes: "25-year repayment mortgage on primary home. Initial 5-yr fix expiring
+    2027-03-31, then reverts to lender SVR unless remortgaged."
+
+  # ---------------------------------------------------------------------------
+  # Core terms
+  # ---------------------------------------------------------------------------
+  original_balance: 350000.00             # £350,000 initial drawdown
+  start_date: 2022-04-01                  # Date of drawdown / completion
+  term_years: 25                          # Contracted mortgage term
+  repayment_type: repayment               # 'repayment' | 'interest_only'
+
+  # ---------------------------------------------------------------------------
+  # Offset account
+  # ---------------------------------------------------------------------------
+  # Balances held in a linked offset account reduce the interest-bearing
+  # principal each month.  Set offset_balance: 0 to disable.
+  offset_balance: 15000.00                # Current offset account balance
+  offset_grows_at: 0.00                   # Annual growth rate of offset balance
+                                          # (0.0 = treated as static savings pot)
+
+  # ---------------------------------------------------------------------------
+  # Overpayment cap (ERC-free allowance)
+  # ---------------------------------------------------------------------------
+  # Most fixed-rate deals allow up to 10% of the original balance per year
+  # without incurring Early Repayment Charges.  Set to 0 to disable the cap
+  # check entirely (e.g. tracker mortgages with no ERCs).
+  annual_overpayment_cap_pct: 0.10        # 10% of original_balance per year
+
+  # ---------------------------------------------------------------------------
+  # Rate periods
+  # ---------------------------------------------------------------------------
+  # List ALL periods from start to end of term.  The engine uses the last
+  # matching period for any payment date.  Leave end_date null on the final
+  # period to indicate it runs to mortgage payoff (open-ended SVR).
+  #
+  # rate_type is informational: 'fixed' | 'variable' | 'tracker' | 'discount'
+  # ---------------------------------------------------------------------------
+  rate_periods:
+
+    - label: "Initial 5-year fixed rate"
+      annual_rate: 0.0199                 # 1.99% fixed
+      start_date: 2022-04-01
+      end_date:   2027-03-31
+      rate_type:  fixed
+      notes: "Competitive fix secured at completion."
+
+    - label: "Lender SVR (revert rate)"
+      annual_rate: 0.0749                 # 7.49% SVR — placeholder until remortgage
+      start_date: 2027-04-01
+      end_date:   null                    # Open-ended — runs until payoff or replaced
+      rate_type:  variable
+      notes: "Will remortgage before this kicks in. Modelled conservatively."
+
+    # Example: insert a future remortgage deal by adding a period here:
+    # - label: "Remortgage 5-yr fix (2027)"
+    #   annual_rate: 0.0425
+    #   start_date: 2027-04-01
+    #   end_date:   2032-03-31
+    #   rate_type:  fixed
+    #   notes: "Assumed deal — update when confirmed."
+
+  # ---------------------------------------------------------------------------
+  # Overpayments
+  # ---------------------------------------------------------------------------
+  # Two types:
+  #   lump_sum     — one-off payment applied on a specific date
+  #   monthly_extra — additional fixed amount added to each regular payment
+  #                   between monthly_extra_start and monthly_extra_end
+  #
+  # All amounts are in addition to the scheduled monthly payment.
+  # The engine enforces annual_overpayment_cap_pct and logs warnings on breach.
+  # ---------------------------------------------------------------------------
+  overpayments:
+
+    - overpayment_type: lump_sum
+      amount: 10000.00
+      date: 2024-03-01
+      notes: "Annual bonus — applied as single lump sum in March 2024."
+
+    - overpayment_type: lump_sum
+      amount: 5000.00
+      date: 2025-03-01
+      notes: "Partial bonus overpayment March 2025."
+
+    - overpayment_type: monthly_extra
+      amount: 300.00
+      monthly_extra_start: 2023-06-01
+      monthly_extra_end:   2027-03-31
+      date: null                          # Not used for monthly_extra
+      notes: "£300/month extra during the fixed-rate period to build equity faster."
+
+    # Template — uncomment and fill to add more:
+    # - overpayment_type: lump_sum
+    #   amount: 0.00
+    #   date: YYYY-MM-DD
+    #   notes: ""
+
+
+# =============================================================================
+# Property Configuration
+# =============================================================================
+# Used to calculate equity and LTV in the annual summaries.
+# Omit this section entirely to suppress equity/LTV calculations.
+# =============================================================================
+
+property:
+
+  property_id: primary_residence          # Must match mortgage.property_id
+  label: "Primary Residence"
+  currency: GBP
+
+  # Valuation
+  purchase_price: 440000.00              # Original purchase price
+  current_value:  465000.00             # Current estimated market value
+  purchase_date:  2022-04-01            # Date of purchase (used for growth compounding)
+
+  # House price growth assumption
+  # The engine compounds current_value forward from purchase_date at this rate.
+  # Adjust per your regional outlook.
+  annual_growth_rate: 0.030             # 3.0% p.a. — conservative UK long-run average
+
+  notes: "3-bed semi in South London.  Valuation from Zoopla Feb 2025."
