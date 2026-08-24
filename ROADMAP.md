@@ -56,16 +56,18 @@ Phases 1–6 are complete. This document groups remaining work into logical phas
 
 ---
 
-## Phase 10 · Connectivity & Data Import
-*Reduces the manual-entry friction that is LifeLedger's main disadvantage vs Empower/Monarch.*
+## Phase 10 · Data Import & Record Ingest
+*Reduces manual-entry friction without requiring third-party API connections.*
 
 | Deliverable | Notes |
 |---|---|
-| Open Banking balance sync | UK Open Banking API (read-only, no transaction data): sync current account, savings, and ISA balances automatically. No Plaid/per-connection fees — the UK mandates free API access. |
-| CSV import | Import transactions or holdings from broker CSVs (Vanguard, Hargreaves Lansdown, AJ Bell, Interactive Brokers). Map columns to LifeLedger account types. |
-| YNAB / Monzo import | Pull monthly spending by category to auto-populate expense buckets. |
-| ISIN resolver | Resolve any ISIN to a yfinance symbol using the OpenFIGI API. Removes the need to manually find ticker symbols. |
+| Bank statement ingest (CSV/OFX) | Upload a bank or credit card statement export and have LifeLedger parse it into the emergency fund / current account balance. Supports the standard OFX/QFX format (exported by most UK banks) and generic CSV with column mapping. No API, no credentials — just a file the user downloads from their own bank portal. |
+| Broker CSV import | Import holdings from broker statement CSVs: Vanguard, Hargreaves Lansdown, AJ Bell, Interactive Brokers, Freetrade. Map broker column names to LifeLedger account types and auto-populate units, price, and total value. |
+| Pension statement PDF parser | Extract current pot value and employer/employee contribution rates from PDF pension statements (ReportLab + pdfplumber). Handles the standard layouts from Nest, People's Pension, Standard Life, Aviva. |
+| Spending category import | Upload a Monzo, Starling, or YNAB CSV export; map spending categories to LifeLedger expense buckets; update annual spend assumptions from actuals. |
+| ISIN resolver | Resolve any ISIN to a yfinance ticker symbol using the OpenFIGI API. Removes the need to manually find ticker symbols for holdings. |
 | Price staleness alerts | Dashboard banner when any holding price is >24h stale with one-click refresh. |
+| Import history log | Audit trail of every file ingested: filename, date, accounts affected, values changed. Lets the user undo an import if the file was wrong. |
 | Google Drive auto-backup | Scheduled upload of `data/scenarios/` to Drive (already partially configured in `lifeledger_config.yaml`; needs the OAuth flow wired to the Settings screen). |
 
 ---
