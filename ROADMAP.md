@@ -69,6 +69,39 @@ Phases 1–6 are complete. This document groups remaining work into logical phas
 | Price staleness alerts | Dashboard banner when any holding price is >24h stale with one-click refresh. |
 | Import history log | Audit trail of every file ingested: filename, date, accounts affected, values changed. Lets the user undo an import if the file was wrong. |
 | Google Drive auto-backup | Scheduled upload of `data/scenarios/` to Drive (already partially configured in `lifeledger_config.yaml`; needs the OAuth flow wired to the Settings screen). |
+| **Investment opportunity analyser** | Upload a bank or savings account statement (CSV/OFX). The engine reads the balance history — opening amount, all credits and debits — and replays that exact cash-flow sequence against a configurable set of funds using real historical price data from yfinance. For each fund it calculates: what the account would be worth today if each deposit had been invested on that date (DCA), the total return vs the actual account balance, and the annualised return delta. Results are shown as a ranked comparison table and a cumulative-value line chart. A predefined fund list covers the most popular UK index funds and ETFs (see config below); the user can add any yfinance-compatible ticker manually. |
+
+**Predefined fund list for the investment analyser** (configurable in `config/investment_analyser/funds.yaml`):
+
+| Ticker | Name | Asset class |
+|---|---|---|
+| `VWRP.L` | Vanguard FTSE All-World ETF (Acc) | Global equity |
+| `VUSA.L` | Vanguard S&P 500 ETF | US equity |
+| `VUKE.L` | Vanguard FTSE 100 ETF | UK equity |
+| `0P0000YXUZ.L` | Vanguard LifeStrategy 80% Acc | Multi-asset |
+| `0P00000VNM.L` | Vanguard LifeStrategy 60% Acc | Multi-asset (balanced) |
+| `CSP1.L` | iShares Core S&P 500 ETF | US equity |
+| `SWLD.L` | iShares MSCI World ETF | Developed market equity |
+| `HMWO.L` | HSBC MSCI World ETF | Developed market equity |
+| `INRG.L` | iShares Global Clean Energy ETF | Thematic |
+| `^FTSE` | FTSE All-Share Index (reference) | UK benchmark |
+| Custom | Any yfinance ticker the user adds | User-defined |
+
+**How the comparison works:**
+1. Parse the uploaded statement into a time-series of `(date, balance_change)` events.
+2. For each fund, fetch daily adjusted close prices from yfinance covering the same date range.
+3. Simulate DCA: for each credit event, "buy" units at that day's price; for each debit, "sell" pro-rata units.
+4. Compute end value = remaining units × latest price.
+5. Compare end value to the actual current account balance.
+6. Output: ranked table (fund, end value, gain/loss vs actual, annualised return, max drawdown during period), plus a single cumulative-value line chart showing actual balance alongside each fund's simulated value over the same period.
+7. A "best match" recommendation banner highlights the top-performing fund and the missed gain in £.
+
+**Deliverables:**
+- `backend/engine/fund_comparison_engine.py` — DCA replay engine, yfinance data fetch, return calculation
+- `config/investment_analyser/funds.yaml` — predefined fund list with names, tickers, asset class, benchmark flag
+- `backend/api/routes/investment_analyser.py` — `POST /api/investment-analyser/compare` (accepts statement file + optional extra tickers)
+- `frontend/src/screens/InvestmentAnalyser.tsx` — file upload, fund selector checkboxes, ranked results table, cumulative chart, recommendation banner
+- Parser support for OFX, QFX, and simple two-column CSV (date, balance or date, amount)
 
 ---
 
