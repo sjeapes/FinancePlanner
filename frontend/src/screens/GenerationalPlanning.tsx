@@ -101,11 +101,6 @@ function KPI({ label, value, sub, accent = TEAL }: { label: string; value: strin
   )
 }
 
-function Pill({ label, colour }: { label: string; colour: string }) {
-  return <span style={{ background: `${colour}22`, color: colour, border: `1px solid ${colour}44`,
-                        borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 600 }}>{label}</span>
-}
-
 // ── Tab 1: Country Comparison ─────────────────────────────────────────────────
 
 function CountryComparisonTab({ data }: { data: ComparisonReport }) {
