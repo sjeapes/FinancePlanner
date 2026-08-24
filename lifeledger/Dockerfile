@@ -2,12 +2,14 @@
 # LifeLedger Home Assistant Add-on — Dockerfile
 # =============================================================================
 # Multi-stage build:
-#   Stage 1: node:22-slim  → npm install --legacy-peer-deps + vite build
-#   Stage 2: python:3.12-slim → pip install + copy built frontend dist
+#   Stage 1 (node:22-slim)    — npm install + vite build
+#   Stage 2 (python:3.12-slim) — pip install + frontend dist copied in
 #
-# ca-certificates must be installed before any git clone or HTTPS fetch.
-# node:22-slim and python:3.12-slim are minimal Debian images that ship
-# without a CA bundle, so SSL verification fails without this package.
+# SSL fix: slim Debian images ship without a CA bundle.
+#   1. Install ca-certificates
+#   2. Run update-ca-certificates (regenerates /etc/ssl/certs/ca-certificates.crt)
+#   3. Set GIT_SSL_CAINFO so git/libcurl finds the bundle regardless of how
+#      libcurl was compiled (it may have no compiled-in default path).
 # =============================================================================
 
 # ── Stage 1: build the React frontend ────────────────────────────────────────
@@ -15,29 +17,30 @@ FROM node:22-slim AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
-# ca-certificates — required for HTTPS git clone (no CA bundle in slim images)
-# python3 / make / g++ — required by node-gyp for native npm packages
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates git python3 make g++ \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Tell git/libcurl exactly where the CA bundle is.
+# Required when libcurl has no compiled-in default (common in slim images).
+ENV GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
 
 RUN git clone --depth=1 "${REPO_URL}" /src
 
 WORKDIR /src/frontend
 
-# Increase timeouts for containerised npm builds
 RUN npm config set fetch-retries 5 \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set fetch-retry-maxtimeout 120000
 
 # --legacy-peer-deps: recharts declares React 16-18 as peers; React 19 works
-# at runtime but npm strict mode refuses the install without this flag.
+# at runtime but npm strict mode refuses without this flag.
 RUN npm install --legacy-peer-deps
 
-# Defined in package.json as: tsc -b && vite build
+# package.json build script: tsc -b && vite build
 RUN npm run build
-# Output: /src/frontend/dist/
 
 
 # ── Stage 2: Python runtime ───────────────────────────────────────────────────
@@ -45,32 +48,32 @@ FROM python:3.12-slim AS runtime
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
-# ca-certificates — same reason: HTTPS git clone needs SSL verification
-# gcc / g++ / libffi-dev — needed by some Python wheels at install time
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates git gcc g++ libffi-dev \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Same SSL fix for the Python stage git clone
+ENV GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
 
 RUN git clone --depth=1 "${REPO_URL}" /app
 
 WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Strip build tools to keep the final image smaller
 RUN apt-get purge -y git gcc g++ libffi-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the built React dist from Stage 1
-# backend/main.py._serve_frontend() mounts this at runtime
+# Copy built React dist from Stage 1
 COPY --from=frontend-build /src/frontend/dist /app/frontend/dist
 
 RUN mkdir -p /app/data/scenarios/templates \
              /app/data/checkpoints \
              /app/data/exports
 
-# Startup script written inline — zero COPY from build context
+# Startup script inline — no COPY from build context
 RUN cat > /run.sh << 'RUNSCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -121,7 +124,7 @@ fi
 cat > "${CONFIG_DIR}/lifeledger_config.yaml" << YAML
 app:
   name: "LifeLedger"
-  version: "1.0.4"
+  version: "1.0.5"
   base_currency: "${CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${CONFIG_DIR}/lifeledger.log"
