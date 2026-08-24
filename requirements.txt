@@ -1,10 +1,9 @@
 # ──────────────────────────────────────────────────────────────
-# LifeLedger — Python dependencies
+# LifeLedger — Python dependencies (Phase 6 complete)
 # Pin versions for reproducible builds
 # ──────────────────────────────────────────────────────────────
 
 # ── Phase 1 (core engine) ─────────────────────────────────────
-python-requires>=3.11
 numpy>=1.26
 pandas>=2.2
 scipy>=1.13
@@ -22,11 +21,15 @@ python-multipart>=0.0.9
 # ── Phase 2 (market data) ─────────────────────────────────────
 yfinance>=0.2
 
-# ── Phase 6 (reports) — install when needed ───────────────────
-# reportlab>=4.1
-# matplotlib>=3.8      (already installed for notebook)
+# ── Phase 6 (PDF reports) ─────────────────────────────────────
+reportlab>=4.1
+matplotlib>=3.8
+Pillow>=10.0              # Required by reportlab for image handling
+
+# ── Phase 6 (testing) ─────────────────────────────────────────
+pytest>=8.0
+pytest-asyncio>=0.23
 
 # ── Development / notebooks ───────────────────────────────────
 # jupyter
 # notebook
-# matplotlib>=3.8
