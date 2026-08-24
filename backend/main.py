@@ -441,6 +441,14 @@ def _register_routers(app: FastAPI) -> None:
         except ImportError as exc:
             logger.warning("reports router not available: %s", exc)
 
+        # ── Phase 7: Generational & cross-jurisdiction planning ───────────────
+        try:
+            from backend.api.routes import generational
+            app.include_router(generational.router, prefix="/api", tags=["generational"])
+            logger.debug("_register_routers: generational router registered")
+        except ImportError as exc:
+            logger.warning("generational router not available: %s", exc)
+
         logger.debug("_register_routers: all routers registered")
     except Exception as exc:
         logger.error("_register_routers: failed to register routers: %s", exc, exc_info=True)
