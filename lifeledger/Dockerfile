@@ -2,30 +2,48 @@
 # LifeLedger Home Assistant Add-on — Dockerfile
 # =============================================================================
 # Multi-stage build:
-#   Stage 1 (node:22-alpine)  — clone repo, npm ci, vite build → frontend/dist
-#   Stage 2 (python:3.12-slim) — clone repo, pip install, copy dist from stage 1
+#   Stage 1: node:22-slim  → npm install --legacy-peer-deps + vite build
+#   Stage 2: python:3.12-slim → pip install + copy built frontend dist
 #
-# Build context: lifeledger/   (HA uses the add-on subdirectory)
-# No COPY from the build context — everything comes from the git clone.
-# REQUIREMENT: repo must be public.
+# Why node:22-slim (not alpine):
+#   Some npm packages need python3 / make / g++ for native compilation.
+#   Debian slim provides these via apt without extra config.
+#
+# Why --legacy-peer-deps:
+#   recharts declares React 16-18 as peer deps; React 19 satisfies it at
+#   runtime but npm strict mode refuses to install. --legacy-peer-deps skips
+#   that check and installs successfully.
+#
+# Build context: lifeledger/  — no COPY from build context used here.
+# All source comes from the git clone inside the image.
+# REQUIREMENT: the GitHub repo must be public.
 # =============================================================================
 
 # ── Stage 1: build the React frontend ────────────────────────────────────────
-FROM node:22-alpine AS frontend-build
+FROM node:22-slim AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
-RUN apk add --no-cache git \
-    && git clone --depth=1 "${REPO_URL}" /src
+# python3 / make / g++ needed for npm packages with native bindings
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth=1 "${REPO_URL}" /src
 
 WORKDIR /src/frontend
 
-# npm ci is faster and reproducible (requires package-lock.json).
-# Falls back to npm install if lock file is absent.
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# Tune npm for reliability in containerised builds
+RUN npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000
 
+# --legacy-peer-deps: skip strict peer-dep enforcement (recharts + React 19)
+RUN npm install --legacy-peer-deps
+
+# tsc -b && vite build (as defined in package.json scripts.build)
 RUN npm run build
-# Output: /src/frontend/dist/
+# Produces: /src/frontend/dist/
 
 
 # ── Stage 2: Python runtime ───────────────────────────────────────────────────
@@ -33,37 +51,30 @@ FROM python:3.12-slim AS runtime
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
-# System build deps (removed after pip install to keep image lean)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git gcc g++ libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the app source
 RUN git clone --depth=1 "${REPO_URL}" /app
 
 WORKDIR /app
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Remove build tools — not needed at runtime
 RUN apt-get purge -y git gcc g++ libffi-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the built React frontend from stage 1
-# FastAPI will serve this via _serve_frontend() in backend/main.py
+# Copy the built React dist from Stage 1
+# backend/main.py._serve_frontend() mounts this at runtime
 COPY --from=frontend-build /src/frontend/dist /app/frontend/dist
 
-# Pre-create directories (user data mounts to /config, bind-mounted by HA)
 RUN mkdir -p /app/data/scenarios/templates \
              /app/data/checkpoints \
              /app/data/exports
 
-# Write startup script inline — no COPY from build context needed
+# Write startup script inline — no COPY from lifeledger/ build context needed
 RUN cat > /run.sh << 'RUNSCRIPT'
 #!/usr/bin/env bash
-# LifeLedger HA add-on entrypoint
 set -euo pipefail
 
 APP_DIR=/app
@@ -73,7 +84,6 @@ OPTIONS=${DATA_DIR}/options.json
 
 echo "[LifeLedger] Starting add-on..."
 
-# Read one option from /data/options.json (written by HA Supervisor)
 opt() {
   python3 -c "
 import json
@@ -97,13 +107,11 @@ DRIVE_IV=$(opt drive_sync_interval_minutes 5)
 
 echo "[LifeLedger] currency=${CURRENCY} log=${LOG_LEVEL} mc_sims=${MC_SIMS}"
 
-# Persistent data directories
 mkdir -p \
   "${CONFIG_DIR}/scenarios/templates" \
   "${CONFIG_DIR}/checkpoints" \
   "${CONFIG_DIR}/exports"
 
-# Copy bundled templates once on first run
 if [ -d "${APP_DIR}/data/scenarios/templates" ]; then
   for f in "${APP_DIR}/data/scenarios/templates"/*.yaml; do
     [ -f "$f" ] || continue
@@ -112,11 +120,10 @@ if [ -d "${APP_DIR}/data/scenarios/templates" ]; then
   done
 fi
 
-# Write runtime config
 cat > "${CONFIG_DIR}/lifeledger_config.yaml" << YAML
 app:
   name: "LifeLedger"
-  version: "1.0.2"
+  version: "1.0.3"
   base_currency: "${CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${CONFIG_DIR}/lifeledger.log"
