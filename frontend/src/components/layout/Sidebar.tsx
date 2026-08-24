@@ -6,6 +6,7 @@ import {
   Database,
   Calendar,
   Scale,
+  Globe,
   GitBranch,
   CheckCircle,
   Settings,
@@ -18,6 +19,7 @@ type Screen =
   | 'data'
   | 'retirement'
   | 'estate'
+  | 'generational'
   | 'scenarios'
   | 'checkpoints'
   | 'settings'
@@ -36,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'data',         label: 'Data',                icon: Database,        group: 'Data' },
   { key: 'retirement',   label: 'Retirement Planner',  icon: Calendar,        group: 'Planning' },
   { key: 'estate',       label: 'Estate Planner',      icon: Scale,           group: 'Planning' },
+  { key: 'generational', label: 'Generational',         icon: Globe,           group: 'Planning' },
   { key: 'scenarios',    label: 'Scenarios',           icon: GitBranch,       group: 'Planning' },
   { key: 'checkpoints',  label: 'Checkpoints',         icon: CheckCircle,     group: 'Planning' },
   { key: 'settings',     label: 'Settings',            icon: Settings,        group: 'System' },
