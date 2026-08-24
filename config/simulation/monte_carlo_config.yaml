@@ -1,0 +1,161 @@
+# =============================================================================
+# LifeLedger — Monte Carlo & Simulation Configuration
+# =============================================================================
+# Load with monte_carlo.load_monte_carlo_config().
+# Controls all Phase 3 simulation settings: stochastic Monte Carlo,
+# deterministic macro scenario bands (low/mid/high), sequence-of-returns
+# risk injection, and FIRE probability computation.
+# =============================================================================
+
+monte_carlo:
+
+  # ---------------------------------------------------------------------------
+  # Core MC settings
+  # ---------------------------------------------------------------------------
+  n_simulations: 2000             # Number of stochastic simulation runs.
+                                  # 500  = fast (development / quick view)
+                                  # 1000 = standard
+                                  # 5000 = publication-quality
+                                  # 10000 = slow but smooth confidence bands
+
+  seed: 42                        # Random seed for reproducibility.
+                                  # Set null for a fresh random seed each run.
+
+  enabled: true                   # Set false to skip MC entirely (dev mode).
+
+  log_every_n: 200                # Log MC progress every N simulations.
+
+  max_workers: 0                  # Thread pool workers. 0 = single-threaded.
+                                  # Set 4 on multi-core machines for ~3x speedup.
+
+  # ---------------------------------------------------------------------------
+  # Perturbation parameters
+  # ---------------------------------------------------------------------------
+  # Each simulation samples growth, inflation, and salary from Normal distributions
+  # centred on the base scenario values with these standard deviations.
+  # Wider std = more uncertainty = wider confidence bands.
+  # ---------------------------------------------------------------------------
+  growth_std: 0.10                # Std dev of annual investment growth perturbation.
+                                  # 0.10 = ±10% per year (realistic for equity)
+                                  # 0.05 = tighter (bonds / balanced)
+
+  inflation_std: 0.005            # Std dev of annual inflation perturbation.
+                                  # 0.005 = ±0.5 pp per year
+
+  salary_growth_std: 0.005        # Std dev of annual salary growth perturbation.
+                                  # 0.005 = ±0.5 pp per year
+
+  # ---------------------------------------------------------------------------
+  # Confidence band percentiles
+  # ---------------------------------------------------------------------------
+  # Percentiles extracted from the N-simulation distribution each year.
+  # These are rendered as shaded bands on the graph.
+  #   P5  / P95 = extreme outer band (very pessimistic / very optimistic)
+  #   P10 / P90 = wide band (80% confidence interval)
+  #   P25 / P75 = inner band (50% confidence interval)
+  #   P50       = median (central projection)
+  # ---------------------------------------------------------------------------
+  percentiles:
+    - 5
+    - 10
+    - 25
+    - 50
+    - 75
+    - 90
+    - 95
+
+  # ---------------------------------------------------------------------------
+  # FIRE target
+  # ---------------------------------------------------------------------------
+  # Used for FIRE probability tracking.  0 = use the scenario's own fire_target.
+  # Set an explicit value here to use the same target across all scenarios in
+  # a comparison run.
+  fire_target_net_worth: 0        # e.g. 1200000 for £1.2M target
+
+  # Annual income needed in retirement — used for surplus/shortfall analysis.
+  # Set 0 to disable surplus/shortfall computation.
+  drawdown_annual_target: 48000   # £48,000/yr target (matching base scenario expenses)
+
+  # ---------------------------------------------------------------------------
+  # Macro scenarios (deterministic low / mid / high)
+  # ---------------------------------------------------------------------------
+  # These run as single deterministic projections with specific macro assumptions.
+  # They produce the fan chart background bands (not stochastic).
+  # All rates are decimals; nominal unless marked 'real'.
+  # colour: hex colour for graph rendering.
+  # ---------------------------------------------------------------------------
+  macro_scenarios:
+
+    - label: "Low"
+      colour: "#f85149"          # Red — pessimistic
+      inflation_rate: 0.035      # 3.5% CPI — elevated / stagflation scenario
+      equity_real_return: 0.030  # 3.0% real (2.5% below historical average)
+      bond_real_return: -0.005   # -0.5% real (financial repression)
+      cash_real_return: -0.010   # -1.0% real
+      property_growth_real: 0.000 # Flat real house prices
+      salary_real_growth: 0.000  # No real salary growth (UK wage stagnation)
+      uk_house_price_growth: 0.035  # 3.5% nominal (just keeping up with inflation)
+      us_house_price_growth: 0.040  # 4.0% nominal
+      fx_gbpusd: 1.18            # GBP weakens
+      notes: "Stagflation / low growth scenario: elevated inflation, poor returns,
+        no real wage growth. Stress-tests retirement security."
+
+    - label: "Mid"
+      colour: "#f0a500"          # Gold — central / base case
+      inflation_rate: 0.025      # 2.5% CPI — BoE target
+      equity_real_return: 0.050  # 5.0% real (long-run historical ≈ 5-7%)
+      bond_real_return: 0.010    # 1.0% real
+      cash_real_return: 0.000    # 0.0% real (rate normalisation)
+      property_growth_real: 0.010 # 1.0% real house price growth
+      salary_real_growth: 0.010  # 1.0% real salary growth
+      uk_house_price_growth: 0.035  # 3.5% nominal
+      us_house_price_growth: 0.045  # 4.5% nominal
+      fx_gbpusd: 1.27            # Spot rate held constant
+      notes: "Central / most-likely scenario. BoE inflation target, historical
+        real equity returns, modest real wage and house price growth."
+
+    - label: "High"
+      colour: "#3fb950"          # Green — optimistic
+      inflation_rate: 0.020      # 2.0% CPI — below target / benign
+      equity_real_return: 0.075  # 7.5% real (AI productivity boom scenario)
+      bond_real_return: 0.020    # 2.0% real
+      cash_real_return: 0.005    # 0.5% real
+      property_growth_real: 0.020 # 2.0% real house price growth
+      salary_real_growth: 0.020  # 2.0% real salary growth (tech sector)
+      uk_house_price_growth: 0.040  # 4.0% nominal
+      us_house_price_growth: 0.055  # 5.5% nominal
+      fx_gbpusd: 1.38            # GBP strengthens
+      notes: "Optimistic scenario: strong productivity growth, AI-driven returns,
+        real wage growth, benign inflation. Not the base case."
+
+  # ---------------------------------------------------------------------------
+  # Sequence-of-returns risk
+  # ---------------------------------------------------------------------------
+  # Injects a market crash in the early years of retirement — the most
+  # dangerous period for a drawdown portfolio (selling depressed assets).
+  # Each simulation applies this deterministically; it tests whether the
+  # portfolio survives a bad start to retirement.
+  # ---------------------------------------------------------------------------
+  sequence_of_returns:
+
+    enabled: true
+
+    # Crash occurs N years after retirement start
+    crash_start_offset_years: 1
+
+    # Duration of the crash period
+    crash_duration_years: 2
+
+    # Annual return during the crash (negative = loss)
+    crash_annual_return: -0.20    # -20%/yr — equivalent to a major bear market
+
+    # Recovery excess return above normal after the crash
+    recovery_excess_return: 0.05  # +5% above trend for recovery_duration_years
+
+    # Duration of the excess recovery period
+    recovery_duration_years: 3
+
+    notes: "Models a severe bear market (-20%/yr for 2 years) immediately after
+      retirement, followed by a modest recovery bounce. Reflects the historical
+      worst-case scenario (e.g. 2000-2002, 2008-2009 coinciding with retirement).
+      Disable this to see the 'smooth sailing' projection."
