@@ -1,0 +1,277 @@
+# =============================================================================
+# LifeLedger — Advanced Planning Configuration (Phase 5)
+# =============================================================================
+# Load with advanced_planning.load_planning_config().
+# Controls all four Phase 5 engines:
+#   1. Survivor simulation
+#   2. Estate / IHT calculation
+#   3. Healthcare cost projection
+#   4. Portfolio rebalancing
+#
+# All monetary values in base currency (GBP).
+# All rates as decimals: 0.40 = 40%.
+# All ages in years.
+# =============================================================================
+
+planning:
+
+  enabled: true
+  notes: "Phase 5 advanced planning config. Update annually post-Budget."
+
+  # ---------------------------------------------------------------------------
+  # 1. Survivor Simulation
+  # ---------------------------------------------------------------------------
+  # Models the death of either partner: income removed, mortgage affordability
+  # checked, life cover recommended.
+  # ---------------------------------------------------------------------------
+  survivor:
+
+    # Fraction by which household expenses fall on single-person household.
+    # 0.25 = expenses reduce by 25% (food, travel, some utilities).
+    household_expense_reduction_pct: 0.25
+
+    # Fraction of deceased's pension drawdown income that continues to the
+    # survivor (joint-life fraction; 0.50 = 50% survivor income).
+    survivor_pension_fraction: 0.50
+
+    # Monthly mortgage payment as a fraction of survivor's net income above
+    # which affordability is flagged as a risk (35% is the standard threshold).
+    mortgage_affordability_threshold: 0.35
+
+    # Recommended life cover as a multiple of deceased's gross annual income.
+    # 10× is a common rule of thumb for working-age life cover.
+    life_cover_income_multiple: 10.0
+
+    # Whether to add the outstanding mortgage balance to the recommended
+    # life cover amount (ensures mortgage can be fully repaid on death).
+    mortgage_payoff_cover: true
+
+    notes: "Life cover recommendation = income × multiple + outstanding mortgage.
+      Review actual policy limits annually."
+
+
+  # ---------------------------------------------------------------------------
+  # 2. Estate / IHT Configuration
+  # ---------------------------------------------------------------------------
+  # UK IHT calculation with NRB/RNRB, 7-year gift tracker, and gifting log.
+  # Rates reflect the 2024/25 tax year — update each April.
+  # ---------------------------------------------------------------------------
+  estate:
+
+    jurisdiction: uk   # 'uk' | 'us' | 'both'
+    notes: "UK primary. SIPP outside estate under current rules (pre-April 2027).
+      Review when HMRC pension/IHT reform takes effect."
+
+    # UK Inheritance Tax
+    uk_nil_rate_band:            325000.0   # Individual NRB (frozen to 2028)
+    uk_residence_nil_rate_band:  175000.0   # RNRB for residence to direct descendants
+    uk_iht_rate:                 0.40       # Standard IHT rate (40%)
+    uk_iht_reduced_rate:         0.36       # Reduced rate when ≥10% goes to charity
+    uk_annual_gift_exemption:    3000.0     # Per donor per year, tax-free
+    uk_small_gift_exemption:     250.0      # Per recipient, any number of people
+    uk_wedding_gift_parent:      5000.0     # Parent-to-child gift on marriage
+
+    # UK pensions (SIPP/workplace DC) are currently outside the estate.
+    # HMRC announced in Oct 2024 Budget that this will change from April 2027.
+    # Set to false to model the post-2027 rules (pension included in estate).
+    uk_sipp_outside_estate: true
+
+    # US Federal Estate Tax (if jurisdiction includes 'us')
+    us_federal_exemption:     13610000.0   # Per person ($27.22M per couple, 2024)
+    us_estate_tax_rate:       0.40         # Federal rate on excess
+    us_annual_gift_exemption: 18000.0      # Per recipient per donor (2024)
+
+    # Charitable giving — fraction of net estate left to charity.
+    # If ≥10%, reduced 36% IHT rate applies to the rest.
+    charge_to_charity_pct: 0.0
+
+    # ---------------------------------------------------------------------------
+    # Gift tracker — record all significant past gifts here.
+    # Each gift entry:
+    #   date:      ISO 8601 date the gift was made (YYYY-MM-DD)
+    #   amount:    Amount in base currency
+    #   recipient: Name or description
+    #   notes:     Free-text context
+    #
+    # The engine calculates years_elapsed, taper_relief, iht_at_risk, and
+    # years_to_exempt for each entry automatically.
+    # ---------------------------------------------------------------------------
+    gifts:
+
+      # Template — uncomment and fill:
+      # - date:      2021-06-15
+      #   amount:    10000.00
+      #   recipient: "Hannah — education fund"
+      #   notes:     "Paid directly to school fees account."
+
+      # Annual exemption gifts (£3k/yr) — log here for audit trail:
+      # - date:      2024-04-06
+      #   amount:    3000.00
+      #   recipient: "Hannah"
+      #   notes:     "Annual exemption gift 2024/25."
+
+      # - date:      2024-04-06
+      #   amount:    3000.00
+      #   recipient: "James's parents — contribution to care"
+      #   notes:     "Annual exemption 2024/25 — partner's allocation."
+
+
+  # ---------------------------------------------------------------------------
+  # 3. Healthcare Cost Projection
+  # ---------------------------------------------------------------------------
+  # Year-by-year healthcare costs by age phase and jurisdiction.
+  # UK phases typically have low or zero cost (NHS); US phases are substantial.
+  # Configure one entry per life phase.
+  # ---------------------------------------------------------------------------
+  healthcare:
+
+    jurisdiction: uk   # Primary jurisdiction
+    notes: "UK NHS is free at point of use. Private health insurance is optional.
+      Care home costs modelled separately below."
+
+    # ---------------------------------------------------------------------------
+    # Cost phases — define age ranges and costs per phase.
+    # Multiple phases can apply to different age bands for the same person.
+    # applies_to: leave empty [] to apply to ALL people in the scenario.
+    # ---------------------------------------------------------------------------
+    phases:
+
+      # UK: NHS-only (effectively free, £0 additional cost)
+      - label: "NHS — Working Age"
+        start_age: 0
+        end_age: 59
+        annual_cost: 0.00
+        inflation_rate: 0.03
+        applies_to: []
+        jurisdiction: uk
+        notes: "NHS free at point of use. No private health insurance modelled."
+
+      # UK: Optional private health/dental top-up in retirement
+      - label: "NHS + Private Top-Up (Retirement)"
+        start_age: 60
+        end_age: 79
+        annual_cost: 1500.00    # Private dental + health cash plan
+        inflation_rate: 0.05    # Healthcare inflation > CPI
+        applies_to: []
+        jurisdiction: uk
+        notes: "£1,500/yr covers private dental, optician, and basic health cash plan."
+
+      # UK: Enhanced top-up in late life (aids, mobility, hearing)
+      - label: "NHS + Enhanced Support (Late Life)"
+        start_age: 80
+        end_age: 100
+        annual_cost: 3500.00    # Aids, private appointments, supplements
+        inflation_rate: 0.05
+        applies_to: []
+        jurisdiction: uk
+        notes: "NHS continuing healthcare may offset some costs. Conservative estimate."
+
+      # ── US cost phases (comment out UK / uncomment US if jurisdiction = us) ──
+      # - label: "Employer Health Plan (Working)"
+      #   start_age: 22
+      #   end_age: 61
+      #   annual_cost: 10000.00   # OOP: premiums + deductibles + copays
+      #   inflation_rate: 0.06
+      #   applies_to: []
+      #   jurisdiction: us
+      #   notes: "Typical employer plan OOP costs for a couple."
+
+      # - label: "ACA Bridge (Pre-Medicare)"
+      #   start_age: 62
+      #   end_age: 64
+      #   annual_cost: 26000.00   # Couple ACA Marketplace plan
+      #   inflation_rate: 0.07
+      #   applies_to: []
+      #   jurisdiction: us
+      #   notes: "ACA Bridge ages 62-64 before Medicare eligibility — most expensive phase."
+
+      # - label: "Medicare (Standard Retirement)"
+      #   start_age: 65
+      #   end_age: 79
+      #   annual_cost: 14000.00   # Part B + D + Medigap OOP average couple
+      #   inflation_rate: 0.06
+      #   applies_to: []
+      #   jurisdiction: us
+
+      # - label: "Medicare + Late-Life Care"
+      #   start_age: 80
+      #   end_age: 100
+      #   annual_cost: 36000.00   # Includes home care aids, specialist visits
+      #   inflation_rate: 0.07
+      #   applies_to: []
+      #   jurisdiction: us
+
+    # ---------------------------------------------------------------------------
+    # Care home scenario (modelled separately, in addition to phases above)
+    # ---------------------------------------------------------------------------
+    include_care_home:       true
+    care_home_start_age:     82          # Age at which care home phase begins
+    care_home_daily_rate:    130.00      # £/day — UK average residential care 2024/25
+                                         # (range: £75–£200/day depending on region)
+    care_home_duration_years: 3          # Average duration: 2.5–4 years
+    care_home_inflation_rate: 0.05       # Care cost inflation > CPI historically
+    care_home_applies_to:    []          # [] = all people; or list specific person_ids
+
+
+  # ---------------------------------------------------------------------------
+  # 4. Portfolio Rebalancing
+  # ---------------------------------------------------------------------------
+  # Checks investment account allocations against targets and flags drift.
+  # Glide path automatically reduces equity exposure as retirement approaches.
+  # ---------------------------------------------------------------------------
+  rebalance:
+
+    enabled: true
+    rebalance_frequency: annual   # annual | quarterly | threshold_only
+    notes: "80/10/5/5 target allocation in growth phase. Glide path reduces
+      equities from age 50 to 40% floor by age 65."
+
+    # ---------------------------------------------------------------------------
+    # Global target allocation — applies to any account not listed in
+    # account_targets below.
+    # All percentages must sum to 100.
+    # ---------------------------------------------------------------------------
+    global_target:
+      account_id: global
+      equities_pct:     80.0    # Global equity index funds / ETFs
+      bonds_pct:        10.0    # Government + investment-grade bonds
+      cash_pct:          5.0    # Money market / cash ISA
+      property_pct:      5.0    # REITs / property funds (not primary residence)
+      alternatives_pct:  0.0    # Commodities, infrastructure (not modelled)
+      drift_threshold:   5.0    # Flag when any class drifts > 5 pp from target
+      notes: "Aggressive growth allocation appropriate for 40s. Glide path will adjust."
+
+    # ---------------------------------------------------------------------------
+    # Per-account target overrides (optional).
+    # If an account_id is not listed here, it uses the global_target above.
+    # ---------------------------------------------------------------------------
+    account_targets:
+
+      - account_id: halifax_cash_isa
+        equities_pct:     0.0
+        bonds_pct:        0.0
+        cash_pct:       100.0    # Cash ISA is always 100% cash — no drift flag needed
+        property_pct:     0.0
+        alternatives_pct: 0.0
+        drift_threshold: 100.0   # Suppress rebalancing alerts for pure cash accounts
+        notes: "Cash ISA — no rebalancing needed."
+
+      # Template — add per-account overrides as needed:
+      # - account_id: vanguard_isa
+      #   equities_pct:     90.0
+      #   bonds_pct:         5.0
+      #   cash_pct:          5.0
+      #   property_pct:      0.0
+      #   alternatives_pct:  0.0
+      #   drift_threshold:   5.0
+      #   notes: "ISA: slightly more aggressive — longer time horizon."
+
+    # ---------------------------------------------------------------------------
+    # Glide path — gradually reduces equity exposure as retirement approaches.
+    # Recommended for target-date / lifecycle investing.
+    # ---------------------------------------------------------------------------
+    glide_path_enabled:     true
+    glide_path_start_age:   50      # Age at which equity reduction begins
+    glide_path_end_age:     65      # Age at which equity reaches the floor
+    glide_path_equity_floor: 40.0   # Minimum equity % at and after end_age
+                                     # Reduced equity is reallocated to bonds.
