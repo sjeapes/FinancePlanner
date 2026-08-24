@@ -1,265 +1,294 @@
-expense_buckets:
-- annual_amount: 36000
-  applies_to:
-  - james
-  - sarah
-  currency: GBP
-  end_date: null
-  id: household
-  inflation_linked: true
-  name: Household & Living
-  start_date: '2025-01-01'
-- annual_amount: 12000
-  applies_to:
-  - james
-  - sarah
-  currency: GBP
-  end_date: '2035-08-31'
-  id: childcare
-  inflation_linked: true
-  name: Childcare & Education
-  start_date: '2025-01-01'
-- annual_amount: 42000
-  applies_to:
-  - james
-  - sarah
-  currency: GBP
-  end_date: null
-  id: retirement_living
-  inflation_linked: true
-  name: Retirement Living Costs
-  start_date: '2047-07-01'
-- annual_amount: 8000
-  applies_to:
-  - james
-  - sarah
-  currency: GBP
-  end_date: null
-  id: healthcare
-  inflation_linked: true
-  name: Healthcare / Long-term Care
-  start_date: '2060-01-01'
-fire_target:
-  annual_expenses_target: 48000
-  fire_type: lean_fire
-  swr: 0.04
-  target_net_worth: 1200000
-income_sources:
-- annual_growth_rate: 0.03
-  contributions:
-  - cap_annual: 20000
-    destination_account_id: vanguard_isa
-    rate: 0.1
-  - cap_annual: 60000
-    destination_account_id: vanguard_sipp
-    employer_top_up: 0.05
-    rate: 0.05
-  currency: GBP
-  end_date: '2047-06-30'
-  gross_annual: 95000
-  id: james_salary
-  name: Software Engineering Salary
-  person_id: james
-  start_date: '2018-03-01'
-  tax_treatment: PAYE
-investment_accounts:
-- account_type: ISA
-  assumed_growth_rate: 0.07
-  currency: GBP
-  current_value: 184320
-  holdings:
-  - assumed_growth_rate: 0.07
-    currency: GBP
-    id: vwrp_isa
-    instrument_type: ETF
-    name: Vanguard FTSE All-World ETF (Acc)
-    price_per_unit: 97.34
-    symbol_link:
-      auto_refresh: true
-      isin: IE00BK5BQT80
-      provider: yfinance
-      refresh_schedule: on_app_open
-      symbol: VWRP.L
-    tracking_mode: units
-    units: 142.5
-  - assumed_growth_rate: 0.065
-    currency: GBP
-    id: vls80_isa
-    instrument_type: fund
-    name: Vanguard LifeStrategy 80% Acc
-    price_per_unit: 3.12
-    symbol_link:
-      auto_refresh: true
-      provider: yfinance
-      refresh_schedule: daily
-      symbol: 0P0000YXUZ.L
-    tracking_mode: units
-    units: 3420.15
-  id: vanguard_isa
-  name: Vanguard Stocks & Shares ISA
-  owner_id: james
-- account_type: GIA
-  assumed_growth_rate: 0.062
-  currency: GBP
-  current_value: 52180
-  holdings:
-  - assumed_growth_rate: 0.08
-    currency: GBP
-    id: aapl_gia
-    instrument_type: share
-    name: Apple Inc.
-    price_per_unit: 150.4
-    symbol_link:
-      auto_refresh: true
-      provider: yfinance
-      refresh_schedule: daily
-      symbol: AAPL
-    tracking_mode: units
-    units: 25
-  id: fidelity_gia
-  name: Fidelity GIA
-  owner_id: james
-life_events:
-- affects_account_id: james_current_account
-  amount: 35000
-  currency: GBP
-  date: '2027-06-01'
-  event_type: major_expense
-  id: car_purchase_2027
-  name: New Car Purchase
-- affects_account_id: vanguard_isa
-  amount: 80000
-  currency: GBP
-  date: '2038-01-01'
-  event_type: inheritance
-  id: inheritance_2038
-  name: Estimated Inheritance
-  probability: 0.75
-mortgages:
-- currency: GBP
-  current_balance: 285000
-  id: london_mortgage
-  lump_sum_payments:
-  - amount: 20000
-    date: '2026-06-01'
-    label: Bonus overpayment
-  mortgage_type: repayment
-  name: London House Mortgage
-  original_principal: 320000
-  property_id: london_house
-  rate_periods:
-  - end_date: '2027-01-01'
-    rate: 0.0189
-    rate_type: fixed
-    start_date: '2022-01-01'
-  - end_date: null
-    rate: 0.045
-    rate_type: variable
-    start_date: '2027-01-01'
-  start_date: '2019-06-01'
-  term_years: 30
-pension_funds:
-- annuity_config: null
-  assumed_growth_rate: 0.07
-  currency: GBP
-  current_value: 182400
-  drawdown_config:
-    lump_sum_taken: false
-    mode: pct_swr
-    rate: 0.04
-    start_date: '2047-07-01'
-    tax_free_lump_sum_pct: 0.25
-  id: vanguard_sipp
-  name: Vanguard SIPP (James)
-  owner_id: james
-  pension_type: SIPP
-- annuity_config: null
-  assumed_growth_rate: 0.065
-  currency: GBP
-  current_value: 88400
-  drawdown_config:
-    lump_sum_taken: false
-    mode: pct_swr
-    rate: 0.04
-    start_date: '2049-10-01'
-    tax_free_lump_sum_pct: 0.25
-  id: sarah_sipp
-  name: Sarah Workplace Pension (DC)
-  owner_id: sarah
-  pension_type: workplace_DC
-people:
-- date_of_birth: '1982-05-04'
-  id: james
-  life_expectancy: 90
-  name: Stephen
-  retirement_age: 60
-  state_pension:
-    deferral_years: 0
-    eligible: true
-    expected_start_age: 67
-    full_qualifying_years: 35
-    qualifying_years: 24
-    weekly_amount: 221
-  tax_profile_id: uk_standard
-- date_of_birth: '1983-04-24'
-  id: sarah
-  life_expectancy: 92
-  name: Andrea
-  retirement_age: 59
-  state_pension:
-    deferral_years: 0
-    eligible: true
-    expected_start_age: 67
-    full_qualifying_years: 35
-    qualifying_years: 18
-    weekly_amount: 221
-  tax_profile_id: uk_standard
-properties:
-- assumed_growth_rate: 0.035
-  currency: GBP
-  current_value: 485000
-  id: london_house
-  mortgage_id: london_mortgage
-  name: London House — Primary Residence
-  owner_ids:
-  - james
-  - sarah
-  property_type: residential
-  purchase_date: '2019-06-01'
-  purchase_price: 380000
-  rental_income_annual: 0
-savings_accounts:
-- account_type: cash_ISA
-  annual_contribution: 0
-  currency: GBP
-  current_value: 42800
-  id: halifax_cash_isa
-  interest_rate_periods:
-  - end_date: '2025-12-31'
-    rate: 0.0485
-    start_date: '2024-01-01'
-  - end_date: null
-    rate: 0.035
-    start_date: '2026-01-01'
-  isa_allowance_used: 42800
-  name: Halifax Cash ISA
-  owner_id: james
-- account_type: general
-  annual_contribution: 3600
-  currency: GBP
-  current_value: 18500
-  id: james_current_account
-  interest_rate_periods:
-  - end_date: null
-    rate: 0.005
-    start_date: '2025-01-01'
-  name: James — Current Account (Emergency Fund)
-  owner_id: james
+# =============================================================================
+# LifeLedger — Base Scenario (Example / Demo Data)
+# =============================================================================
+# This file ships with the repo and contains EXAMPLE data only.
+# Replace every value via the LifeLedger UI (Data Management screen) or by
+# editing this file directly. All personal data you enter via Home Assistant
+# is stored in /config/scenarios/ and is never committed to the repository.
+# =============================================================================
+
 scenario:
-  colour: '#0e9aad'
-  created_at: '2025-03-08'
-  description: Baseline projection — retire at 60, current savings rates
   id: base
-  is_base: true
-  modified_at: '2025-03-08'
   name: Current Plan
+  description: Baseline projection — retire at target age, current savings rates
+  is_base: true
+  colour: '#0e9aad'
+  created_at: '2025-01-01'
+  modified_at: '2025-01-01'
+
+
+# ── People ────────────────────────────────────────────────────────────────────
+people:
+
+  - id: person1
+    name: Alex Example
+    date_of_birth: '1980-06-15'      # ← replace with your date of birth
+    life_expectancy: 90
+    retirement_age: 60
+    tax_profile_id: uk_standard
+    state_pension:
+      eligible: true
+      qualifying_years: 20           # ← replace with your NI qualifying years
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20          # full new State Pension 2024/25
+      deferral_years: 0
+
+  - id: person2
+    name: Sam Example
+    date_of_birth: '1982-09-22'      # ← replace with your date of birth
+    life_expectancy: 92
+    retirement_age: 60
+    tax_profile_id: uk_standard
+    state_pension:
+      eligible: true
+      qualifying_years: 15           # ← replace with your NI qualifying years
+      full_qualifying_years: 35
+      expected_start_age: 67
+      weekly_amount: 221.20
+      deferral_years: 0
+
+
+# ── Income Sources ─────────────────────────────────────────────────────────────
+income_sources:
+
+  - id: person1_salary
+    name: Primary Salary
+    person_id: person1
+    gross_annual: 80000              # ← replace with your gross salary
+    currency: GBP
+    tax_treatment: PAYE
+    start_date: '2020-01-01'
+    end_date: '2045-06-30'          # ← replace with your expected retirement date
+    annual_growth_rate: 0.03
+    contributions:
+      - destination_account_id: stocks_isa
+        rate: 0.10                   # 10% of gross → ISA each year
+        cap_annual: 20000
+      - destination_account_id: sipp_person1
+        rate: 0.05                   # 5% employee + 5% employer match
+        employer_top_up: 0.05
+        cap_annual: 60000
+
+  - id: person2_salary
+    name: Partner Salary
+    person_id: person2
+    gross_annual: 55000              # ← replace with your partner's gross salary
+    currency: GBP
+    tax_treatment: PAYE
+    start_date: '2020-01-01'
+    end_date: '2046-09-30'
+    annual_growth_rate: 0.02
+    contributions:
+      - destination_account_id: sipp_person2
+        rate: 0.05
+        employer_top_up: 0.03
+        cap_annual: 60000
+
+
+# ── Expense Buckets ───────────────────────────────────────────────────────────
+expense_buckets:
+
+  - id: household
+    name: Household & Living
+    annual_amount: 36000             # ← replace with your annual household spend
+    currency: GBP
+    inflation_linked: true
+    start_date: '2025-01-01'
+    end_date: null
+    applies_to: [person1, person2]
+
+  - id: childcare
+    name: Childcare & Education
+    annual_amount: 10000             # ← replace or remove if not applicable
+    currency: GBP
+    inflation_linked: true
+    start_date: '2025-01-01'
+    end_date: '2035-08-31'
+    applies_to: [person1, person2]
+
+  - id: retirement_living
+    name: Retirement Living Costs
+    annual_amount: 40000             # ← replace with your target retirement spend
+    currency: GBP
+    inflation_linked: true
+    start_date: '2045-07-01'
+    end_date: null
+    applies_to: [person1, person2]
+
+  - id: healthcare
+    name: Healthcare / Long-term Care
+    annual_amount: 6000
+    currency: GBP
+    inflation_linked: true
+    start_date: '2060-01-01'
+    end_date: null
+    applies_to: [person1, person2]
+
+
+# ── FIRE Target ───────────────────────────────────────────────────────────────
+fire_target:
+  target_net_worth: 1000000         # ← replace with your target (25 × annual spend)
+  annual_expenses_target: 40000
+  swr: 0.04
+  fire_type: lean_fire
+
+
+# ── Properties ────────────────────────────────────────────────────────────────
+properties:
+
+  - id: primary_residence
+    name: Primary Residence
+    property_type: residential
+    current_value: 400000            # ← replace with your property value
+    assumed_growth_rate: 0.035
+    currency: GBP
+    mortgage_id: primary_mortgage
+    owner_ids: [person1, person2]
+    purchase_date: '2020-01-01'     # ← replace with your purchase date
+    purchase_price: 320000           # ← replace with your purchase price
+    rental_income_annual: 0
+
+
+# ── Mortgages ─────────────────────────────────────────────────────────────────
+mortgages:
+
+  - id: primary_mortgage
+    name: Primary Residence Mortgage
+    mortgage_type: repayment
+    property_id: primary_residence
+    original_principal: 270000       # ← replace with your original mortgage amount
+    current_balance: 240000          # ← replace with your current outstanding balance
+    currency: GBP
+    start_date: '2020-01-01'        # ← replace with your mortgage start date
+    term_years: 25
+    rate_periods:
+      - start_date: '2020-01-01'
+        end_date: '2025-12-31'
+        rate: 0.02
+        rate_type: fixed
+      - start_date: '2026-01-01'
+        end_date: null
+        rate: 0.045
+        rate_type: variable
+    lump_sum_payments: []            # add lump-sum overpayments here
+
+
+# ── Pension Funds ─────────────────────────────────────────────────────────────
+pension_funds:
+
+  - id: sipp_person1
+    name: SIPP (Person 1)
+    pension_type: SIPP
+    owner_id: person1
+    current_value: 150000            # ← replace with your pension pot value
+    assumed_growth_rate: 0.07
+    currency: GBP
+    drawdown_config:
+      mode: pct_swr
+      rate: 0.04
+      start_date: '2045-07-01'
+      tax_free_lump_sum_pct: 0.25
+      lump_sum_taken: false
+    annuity_config: null
+
+  - id: sipp_person2
+    name: Workplace Pension (Person 2)
+    pension_type: workplace_DC
+    owner_id: person2
+    current_value: 80000             # ← replace with your partner's pension value
+    assumed_growth_rate: 0.065
+    currency: GBP
+    drawdown_config:
+      mode: pct_swr
+      rate: 0.04
+      start_date: '2046-10-01'
+      tax_free_lump_sum_pct: 0.25
+      lump_sum_taken: false
+    annuity_config: null
+
+
+# ── Investment Accounts ───────────────────────────────────────────────────────
+investment_accounts:
+
+  - id: stocks_isa
+    name: Stocks & Shares ISA
+    account_type: ISA
+    owner_id: person1
+    current_value: 120000            # ← replace with your ISA value
+    assumed_growth_rate: 0.07
+    currency: GBP
+    holdings:
+      - id: global_etf
+        name: Global Equity Index ETF (example)
+        instrument_type: ETF
+        assumed_growth_rate: 0.07
+        currency: GBP
+        tracking_mode: units
+        units: 1000                  # ← replace with your holding
+        price_per_unit: 100.00
+        symbol_link:
+          provider: yfinance
+          symbol: VWRP.L            # ← replace with your ETF ticker
+          isin: IE00BK5BQT80
+          auto_refresh: true
+          refresh_schedule: on_app_open
+
+  - id: gia_general
+    name: General Investment Account
+    account_type: GIA
+    owner_id: person1
+    current_value: 25000             # ← replace with your GIA value
+    assumed_growth_rate: 0.06
+    currency: GBP
+    holdings: []
+
+
+# ── Savings Accounts ──────────────────────────────────────────────────────────
+savings_accounts:
+
+  - id: cash_isa
+    name: Cash ISA
+    account_type: cash_ISA
+    owner_id: person1
+    current_value: 20000             # ← replace with your cash ISA balance
+    annual_contribution: 0
+    isa_allowance_used: 20000
+    currency: GBP
+    interest_rate_periods:
+      - start_date: '2025-01-01'
+        end_date: null
+        rate: 0.035
+
+  - id: emergency_fund
+    name: Current Account (Emergency Fund)
+    account_type: general
+    owner_id: person1
+    current_value: 15000             # ← replace with your emergency fund balance
+    annual_contribution: 2400
+    currency: GBP
+    interest_rate_periods:
+      - start_date: '2025-01-01'
+        end_date: null
+        rate: 0.005
+
+
+# ── Life Events ───────────────────────────────────────────────────────────────
+life_events:
+
+  - id: car_purchase
+    name: New Car Purchase (example)
+    event_type: major_expense
+    date: '2027-01-01'              # ← adjust or remove
+    amount: 25000
+    currency: GBP
+    affects_account_id: emergency_fund
+
+  - id: potential_inheritance
+    name: Potential Inheritance (example)
+    event_type: inheritance
+    date: '2040-01-01'              # ← adjust or remove
+    amount: 50000
+    currency: GBP
+    affects_account_id: stocks_isa
+    probability: 0.50
