@@ -1,0 +1,52 @@
+{
+  "name": "LifeLedger",
+  "version": "1.0.0",
+  "slug": "lifeledger",
+  "description": "Self-hosted personal finance and retirement planning platform. Provides net worth tracking, FIRE projections, pension modelling, and Monte Carlo simulations as a local Home Assistant add-on.",
+  "url": "https://github.com/sjeapes/FinancePlanner",
+  "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
+  "startup": "application",
+  "boot": "auto",
+  "ports": {
+    "8000/tcp": 8000
+  },
+  "ports_description": {
+    "8000/tcp": "LifeLedger FastAPI backend"
+  },
+  "ingress": true,
+  "ingress_port": 8000,
+  "panel_icon": "mdi:chart-line",
+  "panel_title": "LifeLedger",
+  "homeassistant_api": false,
+  "hassio_api": false,
+  "auth_api": false,
+  "map": ["config:rw", "ssl:r"],
+  "options": {
+    "log_level": "INFO",
+    "base_currency": "GBP",
+    "projection_start_year": 2025,
+    "projection_end_year": 2075,
+    "inflation_base_rate": 0.025,
+    "monte_carlo_simulations": 1000,
+    "monte_carlo_seed": 42,
+    "drive_sync_enabled": false,
+    "drive_sync_interval_minutes": 5
+  },
+  "schema": {
+    "log_level": "list(DEBUG|INFO|WARNING|ERROR)?",
+    "base_currency": "list(GBP|USD|EUR)?",
+    "projection_start_year": "int(2020,2030)?",
+    "projection_end_year": "int(2050,2100)?",
+    "inflation_base_rate": "float(0.0,0.15)?",
+    "monte_carlo_simulations": "int(100,10000)?",
+    "monte_carlo_seed": "int(0,99999)?",
+    "drive_sync_enabled": "bool?",
+    "drive_sync_interval_minutes": "int(1,60)?"
+  },
+  "environment": {
+    "LIFELEDGER_CONFIG": "/config/lifeledger_config.yaml",
+    "LIFELEDGER_DB": "/config/lifeledger.db",
+    "LIFELEDGER_LOG": "/config/lifeledger.log"
+  },
+  "image": "ghcr.io/sjeapes/lifeledger-addon/{arch}"
+}
