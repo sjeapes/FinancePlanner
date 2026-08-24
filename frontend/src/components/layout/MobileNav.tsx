@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const OVERFLOW_ITEMS: NavItem[] = [
   { id: 'data',         label: 'Data',       icon: '📋' },
+  { id: 'generational', label: 'Generational', icon: '🌍' },
   { id: 'checkpoints',  label: 'Checks',     icon: '✓' },
   { id: 'settings',     label: 'Settings',   icon: '⚙' },
 ]
