@@ -5,18 +5,9 @@
 #   Stage 1: node:22-slim  → npm install --legacy-peer-deps + vite build
 #   Stage 2: python:3.12-slim → pip install + copy built frontend dist
 #
-# Why node:22-slim (not alpine):
-#   Some npm packages need python3 / make / g++ for native compilation.
-#   Debian slim provides these via apt without extra config.
-#
-# Why --legacy-peer-deps:
-#   recharts declares React 16-18 as peer deps; React 19 satisfies it at
-#   runtime but npm strict mode refuses to install. --legacy-peer-deps skips
-#   that check and installs successfully.
-#
-# Build context: lifeledger/  — no COPY from build context used here.
-# All source comes from the git clone inside the image.
-# REQUIREMENT: the GitHub repo must be public.
+# ca-certificates must be installed before any git clone or HTTPS fetch.
+# node:22-slim and python:3.12-slim are minimal Debian images that ship
+# without a CA bundle, so SSL verification fails without this package.
 # =============================================================================
 
 # ── Stage 1: build the React frontend ────────────────────────────────────────
@@ -24,26 +15,29 @@ FROM node:22-slim AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
-# python3 / make / g++ needed for npm packages with native bindings
+# ca-certificates — required for HTTPS git clone (no CA bundle in slim images)
+# python3 / make / g++ — required by node-gyp for native npm packages
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git python3 make g++ \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates git python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth=1 "${REPO_URL}" /src
 
 WORKDIR /src/frontend
 
-# Tune npm for reliability in containerised builds
+# Increase timeouts for containerised npm builds
 RUN npm config set fetch-retries 5 \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set fetch-retry-maxtimeout 120000
 
-# --legacy-peer-deps: skip strict peer-dep enforcement (recharts + React 19)
+# --legacy-peer-deps: recharts declares React 16-18 as peers; React 19 works
+# at runtime but npm strict mode refuses the install without this flag.
 RUN npm install --legacy-peer-deps
 
-# tsc -b && vite build (as defined in package.json scripts.build)
+# Defined in package.json as: tsc -b && vite build
 RUN npm run build
-# Produces: /src/frontend/dist/
+# Output: /src/frontend/dist/
 
 
 # ── Stage 2: Python runtime ───────────────────────────────────────────────────
@@ -51,8 +45,11 @@ FROM python:3.12-slim AS runtime
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
+# ca-certificates — same reason: HTTPS git clone needs SSL verification
+# gcc / g++ / libffi-dev — needed by some Python wheels at install time
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git gcc g++ libffi-dev \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates git gcc g++ libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth=1 "${REPO_URL}" /app
@@ -60,6 +57,7 @@ RUN git clone --depth=1 "${REPO_URL}" /app
 WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Strip build tools to keep the final image smaller
 RUN apt-get purge -y git gcc g++ libffi-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -72,7 +70,7 @@ RUN mkdir -p /app/data/scenarios/templates \
              /app/data/checkpoints \
              /app/data/exports
 
-# Write startup script inline — no COPY from lifeledger/ build context needed
+# Startup script written inline — zero COPY from build context
 RUN cat > /run.sh << 'RUNSCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -123,7 +121,7 @@ fi
 cat > "${CONFIG_DIR}/lifeledger_config.yaml" << YAML
 app:
   name: "LifeLedger"
-  version: "1.0.3"
+  version: "1.0.4"
   base_currency: "${CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${CONFIG_DIR}/lifeledger.log"
