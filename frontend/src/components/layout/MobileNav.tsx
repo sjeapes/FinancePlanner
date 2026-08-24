@@ -1,8 +1,7 @@
-import type { ComponentType } from 'react'
-
+import { useState } from 'react'
 type Screen =
   | 'dashboard' | 'timeline' | 'portfolio' | 'data'
-  | 'retirement' | 'estate' | 'scenarios' | 'checkpoints' | 'settings'
+  | 'retirement' | 'estate' | 'generational' | 'scenarios' | 'checkpoints' | 'settings'
 
 interface NavItem { id: Screen; label: string; icon: string }
 
@@ -134,5 +133,3 @@ function MoreTab({ active, currentScreen, items, onNavigate }: {
   )
 }
 
-// useState needs to be imported separately
-import { useState } from 'react'
