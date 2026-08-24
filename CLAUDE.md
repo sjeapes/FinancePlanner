@@ -112,7 +112,13 @@ lifeledger/
 │   ├── engine/
 │   │   ├── __init__.py
 │   │   ├── calculator.py              ← ✅ Phase 1: Projection engine + Monte Carlo
-│   │   └── tax_engine.py              ← ✅ Phase 1: UK/US/Generic tax calculations
+│   │   ├── tax_engine.py              ← ✅ Phase 1: UK/US/Generic tax calculations
+│   │   ├── mortgage.py                ← ✅ Phase 2: Mortgage amortisation engine
+│   │   ├── pension.py                 ← ✅ Phase 2: Pension lifecycle engine
+│   │   ├── events.py                  ← ✅ Phase 2: Life events engine
+│   │   ├── tax_wrappers.py            ← ✅ Phase 2: Tax wrapper rules + CGT + FX
+│   │   ├── scenario_engine.py         ← ✅ Phase 2: Scenario diff merger
+│   │   └── monte_carlo.py             ← ✅ Phase 3: Enhanced MC + confidence bands
 │   ├── models/
 │   │   ├── __init__.py
 │   │   └── models.py                  ← ✅ Phase 1: All 20 dataclasses
@@ -297,6 +303,69 @@ Sections:
 **To run the notebook:** open in Jupyter from the project root. Cell 1 adds
 `PROJECT_ROOT` to `sys.path`. All cells are self-contained; run top to bottom.
 
+
+## 4b. Phase 2 — Core Engines + API Layer (COMPLETE ✅)
+
+### Engines added (`backend/engine/`)
+| File | What it delivers |
+|---|---|
+| `mortgage.py` | Full amortisation engine: multi-rate periods, lump-sum & monthly overpayments, ERC cap enforcement, offset account, property equity / LTV tracking. Returns `MortgageResult` with month-by-month schedule and year-by-year `AnnualSummary` for the projection engine. |
+| `pension.py` | Full pension lifecycle: accumulation (contributions + employer match, growth, AMC fee drag), drawdown (percentage SWR / fixed nominal / fixed real), annuity conversion (level / inflation-linked / joint life), UK PCLS (25%), annual allowance + 3-year carry-forward relief, US RMDs from age 73 via IRS Uniform Lifetime Table. Returns `PensionResult` with year-by-year schedule. |
+| `events.py` | Life events engine: 15 typed event processors (property_sale, property_purchase, inheritance, lump_sum_income, major_expense, job_change, career_break, emigration, care_cost_start/end, state_pension_start, partner_death, business_start, redundancy, asset_contribution). Returns `EventMutation` objects consumed by the projection engine. Career break auto-resume is tracked internally. |
+| `tax_wrappers.py` | Tax wrapper rules for 12 account types (ISA, LISA, SIPP, GIA, 401k, Roth_401k, IRA_traditional, IRA_roth, Brokerage_US, PRSA, Taxable, Tax_free). Includes `CGTTracker` (lot tracking, annual exemption, loss carry-forward, basic/higher rate split, residential surcharge), LISA bonus/penalty calculator, and `FXManager` (spot rates + annual drift projection). |
+| `scenario_engine.py` | Scenario diff merger: deep-merges a diff YAML onto the base scenario by ID, re-parsing only changed items. Validates merged result. |
+
+### API layer (`backend/api/routes/`)
+All routes existed in the repo; Phase 2 confirmed and validated:
+- `accounts.py` — CRUD for all account types via base.yaml
+- `simulation.py` — `POST /api/simulate` + `POST /api/simulate/monte-carlo`
+- `scenarios.py` — scenario list/create/update/delete + comparison
+- `tax.py` — `POST /api/tax/calculate`
+- `sync.py` — Google Drive push/pull/status
+- `market_data.py` — symbol search, price refresh
+- `checkpoints.py` — checkpoint create/list/divergence
+
+### Config files added
+| File | Purpose |
+|---|---|
+| `config/mortgages/mortgage_config.yaml` | Example mortgage: 5yr fix → SVR, offset, ERC cap, lump-sum + monthly overpayments, property growth |
+| `config/pensions/pension_config.yaml` | Example SIPP: glide-path growth periods, PCLS, 4% SWR drawdown, annual allowance + carry-forward |
+| `config/events/events_config.yaml` | Full household event plan: property sale/purchase, inheritance, job changes, state pension, care costs, redundancy |
+| `config/tax/tax_wrappers_config.yaml` | CGT tracker settings (£3k exemption, 10%/20% rates, residential 18%/24%), wrapper overrides, GBP/USD/EUR FX rates |
+
+### Validation notebooks
+- `notebooks/02_mortgage_validation.ipynb` — 10-cell mortgage validation with dark-mode charts
+- `notebooks/03_pension_validation.ipynb` — 11-cell pension validation (all phases, PCLS, RMD, allowance breach)
+- `notebooks/04_events_validation.ipynb` — 11-cell events validation (all 15 event types, career break resume, YAML round-trip)
+- `notebooks/05_tax_wrappers_validation.ipynb` — 10-cell CGT/FX/wrapper validation
+
+---
+
+## 4c. Phase 3 — Monte Carlo + Scenario Comparison (COMPLETE ✅)
+
+### Engines added (`backend/engine/`)
+| File | What it delivers |
+|---|---|
+| `monte_carlo.py` | Enhanced MC engine wrapping the base `run_monte_carlo` in `calculator.py`. Adds: structured confidence bands (P5–P95) as `ConfidenceBand` objects; multi-scenario comparison via `compare_scenarios()` returning `ScenarioComparison` with per-year median table and FIRE crossover years; deterministic macro scenario fan chart (Low/Mid/High) via `MacroScenarioBand`; sequence-of-returns risk injection (configurable crash + recovery in early retirement); FIRE probability by year (monotonically non-decreasing); surplus/shortfall analysis against drawdown target; YAML-loadable config. |
+
+### Config files added
+| File | Purpose |
+|---|---|
+| `config/simulation/monte_carlo_config.yaml` | n_sims (2000 default), seed, growth_std (0.10), inflation_std (0.005), percentiles [5,10,25,50,75,90,95], Low/Mid/High macro scenario params (inflation, equity real return, salary growth, FX), SoR crash −20%/2yr + recovery, drawdown_annual_target £48k |
+
+### Low / Mid / High macro scenario parameters
+| Param | Low | Mid | High |
+|---|---|---|---|
+| Inflation | 3.5% | 2.5% | 2.0% |
+| Equity real return | 3.0% | 5.0% | 7.5% |
+| Salary real growth | 0.0% | 1.0% | 2.0% |
+| GBP/USD | 1.18 | 1.27 | 1.38 |
+
+### Validation notebook
+- `notebooks/06_phase3_validation.ipynb` — 9-cell notebook: confidence band width test, FIRE probability monotonicity, macro fan chart (Low/Mid/High), multi-scenario comparison, SoR impact on P10, surplus/shortfall, YAML round-trip, full Phase 3 chart (3-panel: MC bands + FIRE probability + surplus/shortfall), scenario comparison overlay chart.
+
+---
+
 ---
 
 ## 5. Phases Still To Do
@@ -433,7 +502,7 @@ rather than editing YAML directly.
 
 ---
 
-### Phase 3 — Scenario Builder + FIRE Modelling (2–3 weeks)
+### Phase 3 — Scenario Builder + FIRE Modelling (COMPLETE ✅)
 
 **Goal:** Full scenario CRUD in the UI; side-by-side graph comparison; FIRE
 analysis dashboard; scenario templates.
@@ -845,4 +914,352 @@ If any assertion fails, do not proceed — investigate the regression first.
 
 ---
 
-*Last updated: 2025-03-08. Maintained by Claude on behalf of the project owner.*
+---
+
+## 12. Phase 7 — Generational & Cross-Jurisdiction Planning
+
+> **Status: PLANNED — not yet implemented.**
+> Source: `UK_vs_US_Financial_Planning.ipynb` and `UK_vs_US_Comparison_Document_v2.md`
+> Priority: post-Phase 6. Can be integrated as a dedicated screen in Phase 3 frontend or as a standalone report module.
+
+### 12.1 Purpose
+
+Phase 7 extends LifeLedger from a single-household retirement planner into a
+**multi-generational, cross-jurisdiction wealth platform**. It models:
+
+1. **Parents' financial position** across two country paths (UK vs US) from the
+   current position to their projected death year.
+2. **Offspring financial trajectory** from childhood through their full working
+   life, using realistic career path models.
+3. **Wealth transfer** — how assets pass between generations under UK IHT and
+   US estate tax, and what arrives in the offspring's hands net of tax.
+4. **Country comparison** — at any point in the projection, show the delta
+   between staying in the US and relocating to the UK (or vice versa).
+
+The existing `UK_vs_US_Financial_Planning.ipynb` notebook is to be **rolled
+into the platform** as the data source for Phase 7's country-specific macro
+assumptions. The notebook's scenario logic, career models, and sensitivity
+analyses should be reproduced as engine modules, with results surfaced on a
+dedicated screen.
+
+---
+
+### 12.2 New Engine Modules
+
+#### `backend/engine/generational_engine.py`
+
+Core engine for multi-generation projection.
+
+Key classes:
+- `Offspring` — person dataclass: name, birth_year, life_expectancy,
+  career_path_id, country (UK/US), education_type, university_start_year
+- `CareerTrajectory` — maps career_path_id to salary growth curve:
+  - Phase 1 (entry): start_salary, annual_growth_rate
+  - Phase 2 (mid): breakpoint_year, mid_salary, mid_growth
+  - Phase 3 (senior): senior_salary, senior_growth, peak_year
+  - Phase 4 (wind-down): wind_down_year, end_salary
+- `OffspringProjection` — year-by-year projection for one offspring:
+  salary, tax, net_income, savings_rate, account_values, FIRE_year
+- `GenerationalTransfer` — wealth passed from parents to offspring:
+  gross_estate, iht_liability, net_transfer, transfer_year
+- `GenerationalResult` — combined output:
+  parent_timeline, offspring_timeline, transfer, combined_family_wealth
+
+Career paths (matching the notebook's 10 careers):
+```yaml
+career_paths:
+  - id: software_engineer
+    label: "Software Engineer"
+    ceiling: high
+    uk:
+      entry_salary: 45000
+      mid_salary: 95000
+      senior_salary: 150000
+      peak_year_from_start: 20
+    us:
+      entry_salary: 120000   # mid-cost city (Austin / Denver / Seattle suburbs)
+      mid_salary: 200000
+      senior_salary: 320000
+      peak_year_from_start: 18
+      bayarea_threshold: 300000  # above this → Bay Area living costs apply
+
+  - id: doctor
+    label: "Doctor / Physician"
+    ceiling: high
+    uk:
+      entry_salary: 35000   # FY1
+      mid_salary: 75000     # registrar
+      senior_salary: 120000 # consultant
+    us:
+      entry_salary: 65000   # resident
+      mid_salary: 200000    # attending (mid-city)
+      senior_salary: 350000
+
+  # ... (lawyer, data_scientist, nurse, accountant, teacher, etc.)
+```
+
+#### `backend/engine/country_comparison_engine.py`
+
+Runs two parallel projections (UK path / US path) and computes the delta.
+
+- `CountryPath` — enum: UK, US
+- `CountryProjection` — full timeline for one country path:
+  income, tax, housing_cost, healthcare_cost, net_savings, total_wealth
+- `BreakEvenResult` — year at which the UK path overtakes the US path
+  (in common currency at a given FX rate)
+- `ComparisonMatrix` — table of key metrics at key ages: wealth, estate,
+  housing cost, healthcare cost, income coverage
+
+Key methods:
+- `run_comparison(base_scenario, us_scenario, fx_rate)` → `ComparisonMatrix`
+- `find_break_even(uk_result, us_result, fx_scenario)` → `BreakEvenResult`
+- `estate_comparison(uk_result, us_result, offspring)` → net estate each path
+
+#### `backend/engine/macro_country_engine.py`
+
+Country-specific macro assumption sets. Extends `MacroScenarioParams` with
+country-aware parameters from the notebook.
+
+```yaml
+country_macro:
+  UK:
+    low:
+      inflation: 0.035
+      equity_real_return: 0.030
+      salary_real_growth: 0.000
+      house_price_nominal: 0.030
+      healthcare_cost_annual: 0        # NHS free
+    mid:
+      inflation: 0.025
+      equity_real_return: 0.050
+      salary_real_growth: 0.010
+      house_price_nominal: 0.035
+      healthcare_cost_annual: 0
+    high:
+      inflation: 0.020
+      equity_real_return: 0.075
+      salary_real_growth: 0.020
+      house_price_nominal: 0.045
+      healthcare_cost_annual: 0
+
+  US:
+    low:
+      inflation: 0.030
+      equity_real_return: 0.035
+      salary_real_growth: 0.010
+      house_price_nominal: 0.030
+      healthcare_working: 10000         # employer plan OOP
+      healthcare_aca_bridge: 26000      # ages 62-65 (couple)
+      healthcare_medicare: 14000        # ages 65-79
+      healthcare_late_life: 36000       # ages 80+
+    mid:
+      inflation: 0.025
+      equity_real_return: 0.060
+      salary_real_growth: 0.018
+      house_price_nominal: 0.045
+      healthcare_working: 10000
+      healthcare_aca_bridge: 26000
+      healthcare_medicare: 14000
+      healthcare_late_life: 36000
+    high:
+      inflation: 0.020
+      equity_real_return: 0.080
+      salary_real_growth: 0.025
+      house_price_nominal: 0.055
+      healthcare_working: 8000
+      healthcare_aca_bridge: 22000
+      healthcare_medicare: 12000
+      healthcare_late_life: 30000
+```
+
+Key parameters from the notebook to preserve exactly:
+- US Phase 1 (2026–2028): $600k gross, WA (0% state tax), 401k $23.5k + $10k match
+- UK Phase 2 (2029+): £75k primary + £35k spouse = £110k combined
+- Hannah (born 2017): university start 2035; life expectancy 2109
+- Parents (born 1982): projected death ~2070; projection end 2109
+
+#### `backend/engine/university_engine.py`
+
+Models university costs and funding mechanisms by country.
+
+```yaml
+university:
+  hannah_start_year: 2035
+  hannah_duration_years: 4
+
+  uk:
+    tuition_per_year: 9250          # Plan 5 tuition cap
+    living_costs_per_year: 12000    # Moderate
+    funding: student_loan_plan5     # repay 9% above £25k for 40 years
+    parent_contribution: 20000      # parental support
+
+  us:
+    low:
+      type: in_state_public
+      tuition_per_year: 14000
+      living_per_year: 18000
+      funding: 529_plan             # 529 balance at start: ~$136k
+    mid:
+      type: in_state_public
+      tuition_per_year: 16000
+      living_per_year: 20000
+      funding: 529_plan
+    high:
+      type: elite_private
+      tuition_per_year: 62000
+      living_per_year: 25000
+      funding: scholarships_and_loans
+
+  529_plan:
+    current_balance: 136000         # USD, at 2035 start
+    annual_contribution: 0          # already funded
+    growth_rate: 0.07
+
+  lisa_for_hannah:
+    enabled: true
+    annual_contribution: 4000       # max
+    government_bonus: 1000          # 25% of £4k
+    start_year: 2035                # Hannah's 18th birthday
+    projected_balance_at_first_home: 22000  # net of bonus
+```
+
+---
+
+### 12.3 Frontend Additions
+
+#### New screen: `CrossJurisdictionScreen`
+
+A dedicated screen (add to sidebar after Retirement Planner) with:
+
+**Tab 1 — Country Comparison**
+- Select two country paths: UK vs US (or any two from the registered set)
+- Select macro scenario: Low / Mid / High
+- Key metrics table: wealth at retirement, annual housing cost, healthcare cost,
+  estate to offspring (net of tax), Hannah's university cost (parental outlay)
+- FIRE date comparison per path
+- Break-even chart: when does Path A overtake Path B (in common currency)?
+- Toggle: show/hide CA state tax sensitivity
+
+**Tab 2 — Generational Timeline**
+- Combined family wealth chart: parents + Hannah on one chart (2026–2109)
+- Parents' line ends at projected death; transfer arrow shows estate passing
+- Hannah's line picks up from inheritance + her own savings
+- Three scenarios (Low/Mid/High) as shaded bands
+- FIRE date markers for parents and for Hannah (per career path)
+
+**Tab 3 — Hannah's Career Paths**
+- Career selector: 10 career options with UK/US salary curves
+- Chart: salary trajectory (entry → peak) for selected career, both countries
+- Net worth at 45 / 55 / 65 per career, per country
+- University cost breakdown (UK vs US) with 529/LISA impact
+
+**Tab 4 — Estate & IHT**
+- UK IHT scenario: NRB + RNRB, pension outside estate, 7-year gift rule
+- US estate tax scenario: current exemption ($14M+), step-up basis
+- Net estate to Hannah: UK path vs US path in common currency
+- Sensitivity slider: assumed death year (affects compounding to transfer)
+
+**Tab 5 — Sensitivity Analysis**
+- CA state tax impact on Phase 1 savings (bar chart from notebook Section 5C)
+- Social Security claim age comparison (bar chart from notebook Section 5C)
+- GBP/USD sensitivity: how net wealth in GBP changes at FX 1.10 / 1.27 / 1.40
+- Investment return sensitivity: ±2% return over 20 years
+
+---
+
+### 12.4 Notebook Integration
+
+The existing `UK_vs_US_Financial_Planning.ipynb` is rolled into the platform
+as **`notebooks/07_generational_planning.ipynb`**. This notebook:
+- Imports engine modules from `backend/engine/` rather than defining its own logic
+- Uses the same YAML config system (country_macro, career_paths, university)
+- Reproduces all 6 figures from the original notebook using the platform's
+  dark-mode matplotlib style
+- Adds platform-specific validation: all chart data matches the engine output
+
+The original notebook's standalone config block (`CONFIGURATION` cells 1A–1F)
+should be replaced by YAML loads from the config directory. Notebook users
+who want to tweak assumptions should edit the YAML, not the notebook.
+
+---
+
+### 12.5 Validation Figures (from source documents)
+
+These must be reproduced by the Phase 7 engine at mid scenario:
+
+| Metric | US Path | UK Path |
+|---|---|---|
+| Wealth at retirement (2044) | $12.9M | £5.5M (~$7M) |
+| Estate to Hannah (~2070) | $53M | £24M (gross) |
+| Annual housing cost (2029) | $98,433/yr | £29,280/yr |
+| Hannah university (parental outlay, mid) | $134k | £98k |
+| ACA bridge healthcare (62–65, couple) | $26,000/yr | £0 NHS |
+| MC retirement survival (mid, retire 62) | 100% | 100% |
+| MC retirement survival (high inflation) | 100% | 73% ⚠️ |
+| 529 plan at Hannah's university start | $136k | — |
+| LISA govt bonus for Hannah | — | £22k |
+| State pension combined (from 68) | — | £14,710/yr (triple lock) |
+| US Social Security (from 67) | $28k/yr | — |
+| Investment tax drag (lifetime) | $37.4M | £8.9M |
+
+Starting assets (2026): £1.05M total (£623k SIPP, £115k ISA, $400k US equities).
+
+---
+
+### 12.6 Config File (`config/generational/generational_config.yaml`)
+
+New top-level config file covering all Phase 7 settings:
+```yaml
+generational:
+  parents:
+    birth_year: 1982
+    life_expectancy_male: 87
+    life_expectancy_female: 90
+    current_assets:
+      uk_sipp_gbp: 623000
+      uk_isa_gbp: 115000
+      us_equities_usd: 400000
+    retire_age: 62
+    retire_year: 2044
+    us_phase:
+      start_year: 2026
+      end_year: 2028
+      gross_salary_usd: 600000
+      state: WA                   # no state income tax
+      k401_employee: 23500
+      k401_employer_match: 10000
+      extra_savings_target_usd: 100000
+    uk_phase:
+      start_year: 2029
+      primary_gross_gbp: 75000
+      spouse_gross_gbp: 35000
+      primary_pension_rate: 0.05
+      employer_pension_rate: 0.05
+      house_price_gbp: 800000
+      deposit_gbp: 400000
+      sdlt_gbp: 27200
+
+  offspring:
+    - name: Hannah
+      birth_year: 2017
+      life_expectancy: 92
+      projection_end: 2109
+      us_university:
+        start_year: 2035
+        years: 4
+      uk_university:
+        start_year: 2035
+        years: 3
+        student_loan_plan: 5
+      lisa_start_year: 2035
+
+  fx:
+    scenarios:
+      low:  1.18
+      mid:  1.27
+      high: 1.38
+
+  career_paths: [see §12.2 above — stored inline or imported from careers_config.yaml]
+```
+
+*Last updated: 2026-08-24. Maintained by Claude on behalf of the project owner.*
