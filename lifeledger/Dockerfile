@@ -1,47 +1,66 @@
-# ============================================================================
-# LifeLedger Home Assistant Add-on
-# ============================================================================
-# Build context: lifeledger/  (HA uses the add-on subdirectory, not repo root)
+# =============================================================================
+# LifeLedger Home Assistant Add-on — Dockerfile
+# =============================================================================
+# Multi-stage build:
+#   Stage 1 (node:22-alpine)  — clone repo, npm ci, vite build → frontend/dist
+#   Stage 2 (python:3.12-slim) — clone repo, pip install, copy dist from stage 1
 #
-# This Dockerfile has ZERO COPY instructions.
-# The app code is obtained by git-cloning the repo during the build.
-# The startup script is written inline with a shell heredoc.
-# This makes the build immune to build-context path confusion.
-#
-# REQUIREMENT: the GitHub repository must be public.
-# ============================================================================
+# Build context: lifeledger/   (HA uses the add-on subdirectory)
+# No COPY from the build context — everything comes from the git clone.
+# REQUIREMENT: repo must be public.
+# =============================================================================
 
-FROM python:3.12-slim
+# ── Stage 1: build the React frontend ────────────────────────────────────────
+FROM node:22-alpine AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
-# System packages — git to clone, gcc/libffi for Python wheels
+RUN apk add --no-cache git \
+    && git clone --depth=1 "${REPO_URL}" /src
+
+WORKDIR /src/frontend
+
+# npm ci is faster and reproducible (requires package-lock.json).
+# Falls back to npm install if lock file is absent.
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+RUN npm run build
+# Output: /src/frontend/dist/
+
+
+# ── Stage 2: Python runtime ───────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
+
+# System build deps (removed after pip install to keep image lean)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        git \
-        gcc \
-        g++ \
-        libffi-dev \
+    && apt-get install -y --no-install-recommends git gcc g++ libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the app (shallow — no history, just latest commit)
+# Clone the app source
 RUN git clone --depth=1 "${REPO_URL}" /app
 
-# Install Python dependencies from the cloned repo
 WORKDIR /app
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Remove git to shrink the image
-RUN apt-get purge -y git \
+# Remove build tools — not needed at runtime
+RUN apt-get purge -y git gcc g++ libffi-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-create directories (user data mounts to /config, which HA bind-mounts)
+# Copy the built React frontend from stage 1
+# FastAPI will serve this via _serve_frontend() in backend/main.py
+COPY --from=frontend-build /src/frontend/dist /app/frontend/dist
+
+# Pre-create directories (user data mounts to /config, bind-mounted by HA)
 RUN mkdir -p /app/data/scenarios/templates \
              /app/data/checkpoints \
              /app/data/exports
 
-# Write startup script inline — no COPY, no external file dependency
+# Write startup script inline — no COPY from build context needed
 RUN cat > /run.sh << 'RUNSCRIPT'
 #!/usr/bin/env bash
 # LifeLedger HA add-on entrypoint
@@ -57,7 +76,7 @@ echo "[LifeLedger] Starting add-on..."
 # Read one option from /data/options.json (written by HA Supervisor)
 opt() {
   python3 -c "
-import json, sys
+import json
 try:
     d = json.load(open('${OPTIONS}'))
     print(d.get('$1', '$2'))
@@ -84,7 +103,7 @@ mkdir -p \
   "${CONFIG_DIR}/checkpoints" \
   "${CONFIG_DIR}/exports"
 
-# Copy bundled templates once
+# Copy bundled templates once on first run
 if [ -d "${APP_DIR}/data/scenarios/templates" ]; then
   for f in "${APP_DIR}/data/scenarios/templates"/*.yaml; do
     [ -f "$f" ] || continue
@@ -97,7 +116,7 @@ fi
 cat > "${CONFIG_DIR}/lifeledger_config.yaml" << YAML
 app:
   name: "LifeLedger"
-  version: "1.0.0"
+  version: "1.0.2"
   base_currency: "${CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${CONFIG_DIR}/lifeledger.log"
