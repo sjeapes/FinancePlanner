@@ -325,8 +325,64 @@ def create_app() -> FastAPI:
 
     # ── Register routers ──────────────────────────────────────────────────────
     _register_routers(app)
+    _serve_frontend(app)   # must be last — registers the SPA catch-all
 
     return app
+
+
+def _serve_frontend(app: FastAPI) -> None:
+    """
+    @brief Mount the built React frontend as static files with SPA fallback.
+
+    Looks for the Vite build output at frontend/dist/ relative to the project
+    root (two levels up from backend/main.py).  If not found — e.g. in
+    API-only development mode — logs a warning and returns without mounting;
+    the API continues to work and is accessible at /api/docs.
+
+    The SPA catch-all route (GET /{full_path:path}) MUST be registered after
+    all /api/* routes so it does not shadow them.  Always call this function
+    after _register_routers().
+
+    @param app  Configured FastAPI application instance.
+    """
+    import os as _os
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    here     = _os.path.dirname(_os.path.abspath(__file__))
+    root     = _os.path.dirname(here)
+    dist     = _os.path.join(root, "frontend", "dist")
+    index    = _os.path.join(dist, "index.html")
+    assets   = _os.path.join(dist, "assets")
+
+    if not _os.path.isdir(dist) or not _os.path.isfile(index):
+        logger.warning(
+            "_serve_frontend: %s not found — API-only mode. "
+            "Open /api/docs to explore the API.",
+            dist,
+        )
+        return
+
+    # Mount /assets — Vite puts all hashed JS/CSS/fonts here
+    if _os.path.isdir(assets):
+        app.mount("/assets", StaticFiles(directory=assets), name="frontend-assets")
+
+    # SPA catch-all — must be the very last route.
+    # Serves the exact file if it exists (favicon.ico, robots.txt, etc.),
+    # otherwise returns index.html so React Router handles the path client-side.
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _spa_fallback(full_path: str) -> FileResponse:
+        """
+        @brief Serve frontend static files or fall back to index.html.
+        @param full_path  URL path after the leading slash.
+        @return FileResponse for the resolved file or index.html.
+        """
+        target = _os.path.join(dist, full_path)
+        if full_path and _os.path.isfile(target):
+            return FileResponse(target)
+        return FileResponse(index)
+
+    logger.info("_serve_frontend: React SPA mounted from %s", dist)
 
 
 def _register_routers(app: FastAPI) -> None:
