@@ -1,4 +1,4 @@
-import { Play, Loader2 } from 'lucide-react'
+import { Play, Loader2, Smartphone, Monitor } from 'lucide-react'
 import { format } from 'date-fns'
 import { useConfigStore } from '../../store/configStore'
 
@@ -6,16 +6,21 @@ interface Props {
   isRunning: boolean
   lastRunAt: Date | null
   onRun: () => void
+  isMobile?: boolean
+  isManualOverride?: boolean
+  onToggleMobileView?: () => void
 }
 
-export function TopBar({ isRunning, lastRunAt, onRun }: Props) {
+export function TopBar({
+  isRunning, lastRunAt, onRun,
+  isMobile = false, isManualOverride = false, onToggleMobileView,
+}: Props) {
   const { activeScenarioPath, currency } = useConfigStore()
-
   const scenarioName = activeScenarioPath.split('/').pop()?.replace('.yaml', '') ?? 'base'
 
   return (
     <header
-      className="flex items-center shrink-0 px-5 gap-4"
+      className="flex items-center shrink-0 px-4 gap-3"
       style={{
         height: 48,
         backgroundColor: '#162236',
@@ -25,11 +30,10 @@ export function TopBar({ isRunning, lastRunAt, onRun }: Props) {
     >
       {/* Scenario pill */}
       <div
-        className="flex items-center gap-2 rounded px-2.5 py-1 text-xs cursor-pointer transition-all duration-150"
+        className="flex items-center gap-2 rounded px-2.5 py-1"
         style={{
           background: 'rgba(255,255,255,0.04)',
           border: '1px solid rgba(255,255,255,0.07)',
-          color: '#7a93a8',
           fontSize: 11,
         }}
       >
@@ -37,7 +41,6 @@ export function TopBar({ isRunning, lastRunAt, onRun }: Props) {
         <span style={{ color: '#d4a843', fontWeight: 500 }}>{scenarioName}</span>
       </div>
 
-      {/* Divider */}
       <div className="w-px h-5" style={{ background: 'rgba(255,255,255,0.07)' }} />
 
       {/* Currency badge */}
@@ -54,9 +57,9 @@ export function TopBar({ isRunning, lastRunAt, onRun }: Props) {
       </span>
 
       {/* Spacer */}
-      <div className="ml-auto flex items-center gap-3">
-        {/* Last run */}
-        {lastRunAt && (
+      <div className="ml-auto flex items-center gap-2">
+        {/* Last run — hide on mobile to save space */}
+        {lastRunAt && !isMobile && (
           <span style={{ fontSize: 11, color: '#8fa3b8' }}>
             Last run:{' '}
             <span className="font-mono" style={{ color: '#e8edf2' }}>
@@ -65,23 +68,42 @@ export function TopBar({ isRunning, lastRunAt, onRun }: Props) {
           </span>
         )}
 
+        {/* Mobile / Desktop toggle button */}
+        {onToggleMobileView && (
+          <button
+            onClick={onToggleMobileView}
+            title={isMobile ? 'Switch to desktop view' : 'Switch to mobile view'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 30, height: 30, borderRadius: 6,
+              border: `1px solid ${isManualOverride ? '#0e9aad44' : 'rgba(255,255,255,0.07)'}`,
+              background: isManualOverride ? 'rgba(14,154,173,0.12)' : 'rgba(255,255,255,0.04)',
+              cursor: 'pointer', color: isManualOverride ? '#0e9aad' : '#8fa3b8',
+            }}
+          >
+            {isMobile
+              ? <Monitor size={14} />
+              : <Smartphone size={14} />}
+          </button>
+        )}
+
         {/* Run simulation button */}
         <button
           onClick={onRun}
           disabled={isRunning}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold text-white transition-all duration-150 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 rounded px-3 py-1.5"
           style={{
-            background: isRunning ? '#0b7a8a' : '#0e9aad',
-            border: '1px solid transparent',
-            fontSize: 11,
+            background: isRunning ? 'rgba(14,154,173,0.15)' : '#0e9aad',
+            border: 'none', cursor: isRunning ? 'not-allowed' : 'pointer',
+            color: '#fff', fontSize: 12, fontWeight: 600,
+            opacity: isRunning ? 0.7 : 1,
+            whiteSpace: 'nowrap',
           }}
         >
-          {isRunning ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <Play size={12} />
-          )}
-          {isRunning ? 'Running…' : 'Run Simulation'}
+          {isRunning
+            ? <Loader2 size={13} className="animate-spin" />
+            : <Play size={13} />}
+          {!isMobile && (isRunning ? 'Running…' : 'Run')}
         </button>
       </div>
     </header>
