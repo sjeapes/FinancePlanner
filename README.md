@@ -175,22 +175,27 @@ cloudflared tunnel --url http://localhost:5173
 
 ## Quick Setup — Home Assistant
 
-LifeLedger ships as a self-hosted HA add-on. It runs as a service inside Home Assistant OS and exposes the full web UI via HA Ingress.
+LifeLedger ships as a self-hosted HA add-on. It runs inside Home Assistant OS and exposes the full web UI via HA Ingress (no separate port needed on your network).
+
+> **Prerequisite — the repo must be public.**
+> Home Assistant's add-on store can only clone public GitHub repositories.
+> Go to **github.com/sjeapes/FinancePlanner → Settings → Danger Zone → Change visibility → Public** before continuing.
 
 ### Step 1 — Add the repository
 
 1. In Home Assistant, go to **Settings → Add-ons → Add-on Store**
 2. Click the ⋮ menu (top right) → **Repositories**
-3. Add: `https://github.com/sjeapes/FinancePlanner`
-4. Click **Add**, then close
+3. Paste: `https://github.com/sjeapes/FinancePlanner`
+4. Click **Add**, then **Close** — HA will reload the store
 
-The **LifeLedger** add-on will appear in the store. Click **Install**.
+**LifeLedger** appears in the store. Click it, then click **Install**.
+The first install takes 3–5 minutes while Docker builds the image on your hardware.
 
-> **Manual install (alternative):** copy the `homeassistant/` folder to `/addon_configs/lifeledger/` on your HA host, then reload the add-on store.
+> **Manual install (if the repo stays private):** see the SSH method at the bottom of this section.
 
 ### Step 2 — Configure options
 
-In the add-on **Configuration** tab, adjust to your preferences:
+In the add-on **Configuration** tab, set your preferences:
 
 ```yaml
 log_level: INFO            # DEBUG | INFO | WARNING | ERROR
@@ -208,33 +213,51 @@ Click **Save**, then **Start**.
 
 ### Step 3 — Access the UI
 
-- Via HA sidebar: click the **LifeLedger** panel (added automatically)
-- Direct URL: `http://<ha-ip>:8000`
+The add-on registers itself in the HA sidebar automatically (Ingress).
+
+- **Sidebar:** click the **LifeLedger** panel
+- **Direct URL:** `http://<ha-ip>:8000` (if you have port 8000 mapped)
+
+Your scenario data and settings are stored in `/config/` on the HA host and persist across restarts and updates.
 
 ### Step 4 — Add to your HA dashboard *(optional)*
 
-LifeLedger exposes its data through the FastAPI at port 8000. You can create HA template sensors to display key figures:
+Query the LifeLedger API from HA automations or dashboard cards using `rest` sensors:
 
 ```yaml
 # configuration.yaml
-template:
-  - sensor:
+rest:
+  - resource: http://localhost:8000/api/simulate?scenario_path=data/scenarios/base.yaml
+    scan_interval: 3600   # refresh every hour
+    sensor:
       - name: "Net Worth Today"
         unit_of_measurement: "£"
+        value_template: "{{ value_json.current_net_worth | round(0) }}"
         icon: mdi:chart-line
-        state: >
-          {{ state_attr('sensor.lifeledger', 'net_worth_current') | default(0) | round(0) }}
 
       - name: "FIRE Year"
+        value_template: "{{ value_json.fire_year | default('TBD') }}"
         icon: mdi:fire
-        state: >
-          {{ state_attr('sensor.lifeledger', 'fire_year') | default('Unknown') }}
 
       - name: "Years to FIRE"
         unit_of_measurement: "years"
+        value_template: "{{ (value_json.fire_year | int - now().year) | default(0) }}"
         icon: mdi:calendar-clock
-        state: >
-          {{ (state_attr('sensor.lifeledger', 'fire_year') | int - now().year) | default(0) }}
+```
+
+### Manual install via SSH *(if repo stays private)*
+
+If you cannot or do not want to make the repository public, install manually:
+
+```bash
+# SSH into your HA host, then:
+mkdir -p /addon_configs/local_lifeledger
+
+# From a machine that has the repo cloned:
+scp -r lifeledger/ root@<ha-ip>:/addon_configs/local_lifeledger/
+
+# Back in HA: Settings → Add-ons → Add-on Store → ⋮ → Reload
+# The add-on appears under "Local add-ons"
 ```
 
 ---
