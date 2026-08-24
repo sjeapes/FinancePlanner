@@ -8,6 +8,7 @@ import { TimelineGraph } from './screens/TimelineGraph'
 import { PortfolioMixScreen } from './screens/PortfolioMixScreen'
 import { RetirementPlanner } from './screens/RetirementPlanner'
 import { EstatePlanner } from './screens/EstatePlanner'
+import { GenerationalPlanning } from './screens/GenerationalPlanning'
 import { ScenariosScreen } from './screens/ScenariosScreen'
 import { CheckpointsScreen } from './screens/CheckpointsScreen'
 import { Settings } from './screens/Settings'
@@ -24,6 +25,7 @@ type Screen =
   | 'data'
   | 'retirement'
   | 'estate'
+  | 'generational'
   | 'scenarios'
   | 'checkpoints'
   | 'settings'
@@ -35,6 +37,7 @@ const SCREEN_COMPONENTS: Record<Screen, ComponentType> = {
   data:        DataManagement,
   retirement:  RetirementPlanner,
   estate:      EstatePlanner,
+  generational: GenerationalPlanning,
   scenarios:   ScenariosScreen,
   checkpoints: CheckpointsScreen,
   settings:    Settings,
