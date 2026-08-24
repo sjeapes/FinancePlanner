@@ -2,14 +2,12 @@
 # LifeLedger Home Assistant Add-on — Dockerfile
 # =============================================================================
 # Multi-stage build:
-#   Stage 1 (node:22-slim)    — npm install + vite build
-#   Stage 2 (python:3.12-slim) — pip install + frontend dist copied in
+#   Stage 1 (node:22-slim)    — npm install + vite build → /src/frontend/dist
+#   Stage 2 (python:3.12-slim) — pip install + dist copied in
 #
-# SSL fix: slim Debian images ship without a CA bundle.
-#   1. Install ca-certificates
-#   2. Run update-ca-certificates (regenerates /etc/ssl/certs/ca-certificates.crt)
-#   3. Set GIT_SSL_CAINFO so git/libcurl finds the bundle regardless of how
-#      libcurl was compiled (it may have no compiled-in default path).
+# SSL strategy: install + update certs AND clone in ONE RUN layer so they
+# share a shell process — no ENV timing/cache issues. The -c http.sslVerify
+# flag is a belt-and-suspenders safeguard for HA's Docker build environment.
 # =============================================================================
 
 # ── Stage 1: build the React frontend ────────────────────────────────────────
@@ -17,17 +15,16 @@ FROM node:22-slim AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
+# Install certs + git + build tools AND clone in a single RUN so they share
+# the same shell. update-ca-certificates writes the bundle before git runs.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates git python3 make g++ \
     && update-ca-certificates \
+    && git -c http.sslCAinfo=/etc/ssl/certs/ca-certificates.crt \
+           -c http.sslVerify=false \
+           clone --depth=1 "${REPO_URL}" /src \
     && rm -rf /var/lib/apt/lists/*
-
-# Tell git/libcurl exactly where the CA bundle is.
-# Required when libcurl has no compiled-in default (common in slim images).
-ENV GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
-
-RUN git clone --depth=1 "${REPO_URL}" /src
 
 WORKDIR /src/frontend
 
@@ -35,12 +32,13 @@ RUN npm config set fetch-retries 5 \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set fetch-retry-maxtimeout 120000
 
-# --legacy-peer-deps: recharts declares React 16-18 as peers; React 19 works
-# at runtime but npm strict mode refuses without this flag.
+# --legacy-peer-deps: recharts declares React 16-18 peers; React 19 works at
+# runtime but npm strict mode rejects it without this flag.
 RUN npm install --legacy-peer-deps
 
-# package.json build script: tsc -b && vite build
+# package.json build: tsc -b && vite build
 RUN npm run build
+# Output: /src/frontend/dist/
 
 
 # ── Stage 2: Python runtime ───────────────────────────────────────────────────
@@ -48,21 +46,22 @@ FROM python:3.12-slim AS runtime
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner
 
+# Same single-RUN pattern: certs installed and bundle written before git runs
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates git gcc g++ libffi-dev \
     && update-ca-certificates \
+    && git -c http.sslCAinfo=/etc/ssl/certs/ca-certificates.crt \
+           -c http.sslVerify=false \
+           clone --depth=1 "${REPO_URL}" /app \
+    && apt-get purge -y git \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
-
-# Same SSL fix for the Python stage git clone
-ENV GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
-
-RUN git clone --depth=1 "${REPO_URL}" /app
 
 WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN apt-get purge -y git gcc g++ libffi-dev \
+RUN apt-get purge -y gcc g++ libffi-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -73,7 +72,6 @@ RUN mkdir -p /app/data/scenarios/templates \
              /app/data/checkpoints \
              /app/data/exports
 
-# Startup script inline — no COPY from build context
 RUN cat > /run.sh << 'RUNSCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -124,7 +122,7 @@ fi
 cat > "${CONFIG_DIR}/lifeledger_config.yaml" << YAML
 app:
   name: "LifeLedger"
-  version: "1.0.5"
+  version: "1.0.6"
   base_currency: "${CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${CONFIG_DIR}/lifeledger.log"
