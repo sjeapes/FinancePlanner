@@ -1,0 +1,82 @@
+# =============================================================================
+# LifeLedger — PDF Report Configuration
+# =============================================================================
+# Load with report_engine.load_report_config().
+# Controls the Phase 6 PDF report export engine.
+# Set preset to 'quick', 'full_annual', or 'ifa_pack'.
+# Override individual sections/charts by listing them explicitly.
+# =============================================================================
+
+report:
+
+  # ---------------------------------------------------------------------------
+  # Cover page metadata
+  # ---------------------------------------------------------------------------
+  title:        "LifeLedger Financial Plan"
+  subtitle:     "Annual Review 2025"
+  prepared_for: ""                    # Client name (leave blank for personal use)
+  prepared_by:  "LifeLedger"
+
+  # ---------------------------------------------------------------------------
+  # Source scenario
+  # ---------------------------------------------------------------------------
+  scenario_path: "data/scenarios/base.yaml"
+
+  # ---------------------------------------------------------------------------
+  # Preset — controls sections and charts unless overridden below
+  # Options: quick (~4pp) | full_annual (~18pp) | ifa_pack (~28pp)
+  # ---------------------------------------------------------------------------
+  preset: full_annual
+
+  # ---------------------------------------------------------------------------
+  # Section and chart overrides (leave empty [] to use preset defaults)
+  # ---------------------------------------------------------------------------
+  sections: []
+  charts:   []
+
+  # ---------------------------------------------------------------------------
+  # Monte Carlo settings
+  # ---------------------------------------------------------------------------
+  include_monte_carlo: true
+  mc_simulations: 500          # Reduce to 200 for faster generation
+
+  # ---------------------------------------------------------------------------
+  # Page layout
+  # ---------------------------------------------------------------------------
+  paper_size:   "A4"           # A4 | letter
+  colour_scheme: "navy_teal"   # navy_teal | warm | monochrome
+  include_toc:  true
+
+  # ---------------------------------------------------------------------------
+  # Watermark — shown diagonally on every page
+  # Options: null | "CONFIDENTIAL" | "DRAFT"
+  # ---------------------------------------------------------------------------
+  watermark: null
+
+  # ---------------------------------------------------------------------------
+  # Output file
+  # ---------------------------------------------------------------------------
+  output_path:    null          # Absolute path; null = auto-generate in data/exports/
+  output_filename: "lifeledger_{date}_{name}.pdf"
+
+  # ---------------------------------------------------------------------------
+  # Chart rendering
+  # ---------------------------------------------------------------------------
+  chart_dpi:          150      # 150 = good quality, 300 = print quality (slower)
+  chart_width_inches:  10.0
+  chart_height_inches:  5.0
+
+  # ---------------------------------------------------------------------------
+  # Google Drive upload (requires Drive sync to be configured)
+  # ---------------------------------------------------------------------------
+  upload_to_drive: false
+  drive_folder: "LifeLedger/exports"
+
+  # ---------------------------------------------------------------------------
+  # Projection range shown in charts
+  # ---------------------------------------------------------------------------
+  date_range_start: 2025
+  date_range_end:   2075
+
+  enabled: true
+  notes: "Default Phase 6 report config. Adjust preset and watermark as needed."
