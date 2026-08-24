@@ -1,0 +1,135 @@
+# =============================================================================
+# LifeLedger — Retirement Planning Configuration
+# =============================================================================
+# Load with retirement_engine.load_retirement_config().
+# Controls all Phase 4 retirement analysis settings:
+#   1. Income coverage thresholds
+#   2. Drawdown order strategy defaults
+#   3. Annuity pricing assumptions
+#   4. State pension / NI tracker settings
+#   5. Emergency fund targets
+#
+# All monetary values in base currency (GBP by default).
+# All rates as decimals: 0.04 = 4%.
+# =============================================================================
+
+retirement:
+
+  # ---------------------------------------------------------------------------
+  # General
+  # ---------------------------------------------------------------------------
+  enabled: true
+  notes: "Phase 4 retirement engine settings. Update annually after Budget / SP uprating."
+
+  # ---------------------------------------------------------------------------
+  # 1. Income Coverage
+  # ---------------------------------------------------------------------------
+  # The engine compares total retirement income to total expenses each year.
+  # Coverage ratio = total_income / total_expenses.
+  #   >= income_coverage_target  → 'covered'   (green)
+  #   >= income_coverage_amber   → 'amber'     (yellow warning)
+  #   <  income_coverage_amber   → 'shortfall' (red alert)
+  # ---------------------------------------------------------------------------
+  income_coverage_target: 1.00        # 1.00 = fully covered (100%)
+  income_coverage_amber:  0.80        # 0.80 = amber warning below 80%
+
+  # Income source tax treatments counted as retirement income.
+  # 'PAYE' and 'self_employed' are working-life income and are excluded.
+  retirement_income_tax_treatments:
+    - pension_drawdown
+    - state_pension
+    - rental
+    - other
+
+  # Account types treated as liquid (for emergency fund and ISA-first drawdown)
+  liquid_account_types:
+    - ISA
+    - cash_ISA
+    - LISA
+    - general
+
+  # ISA withdrawal is tax-free — set to 0
+  isa_annual_drawdown_tax_rate: 0.00
+
+  # ---------------------------------------------------------------------------
+  # 2. Drawdown Order Optimisation
+  # ---------------------------------------------------------------------------
+  # default_drawdown_order: the strategy shown first in the API and UI.
+  # Options: isa_first | sipp_first | gia_first | optimised
+  #
+  # ISA-first: draw from ISA (tax-free) before touching SIPP or GIA.
+  #   Best when: ISA pot is large; income from SIPP would push into higher band.
+  # SIPP-first: draw SIPP before ISA.
+  #   Best when: estate planning (SIPP outside estate); expecting lower income
+  #   in early retirement; ISA pot is small.
+  # GIA-first: draw general investment account before tax-sheltered accounts.
+  #   Best when: large GIA with embedded gains near CGT annual exemption.
+  # Optimised: fills personal allowance and basic-rate band with SIPP, then
+  #   tops up from ISA — most tax-efficient but complex to model precisely.
+  # ---------------------------------------------------------------------------
+  default_drawdown_order: isa_first
+
+  # UK income tax bands used in drawdown tax comparison (2024/25 rates)
+  personal_allowance:    12570.0
+  basic_rate_band_limit: 50270.0
+  basic_rate:            0.20
+  higher_rate:           0.40
+
+  # ---------------------------------------------------------------------------
+  # 3. Annuity Rates
+  # ---------------------------------------------------------------------------
+  # annuity_rate_X: annual income per £100,000 of fund converted.
+  #   Example: 5200 = £5,200/yr per £100k = 5.2% gross yield.
+  # Update these from the Money Advice Service / annuity market each year.
+  # Rates vary significantly with age, health, and insurer — these are
+  # illustrative market benchmarks for a 65-year-old in average health.
+  # ---------------------------------------------------------------------------
+  annuity_rate_level:       5200.0    # Level (fixed income for life)
+  annuity_rate_inflation:   4200.0    # Inflation-linked (CPI-linked income)
+  annuity_rate_joint_life:  4600.0    # Joint life, 50% survivor
+
+  # Escalation rate for inflation-linked annuity
+  annuity_inflation_rate:   0.025     # 2.5% CPI assumption
+
+  # Survivor fraction for joint-life annuity
+  annuity_joint_survivor_pct: 0.50    # 50% of income continues to survivor
+
+  # Guarantee period — annuity pays estate if annuitant dies within this period
+  annuity_guarantee_years:  5
+
+  # Drawdown safe withdrawal rate for comparison
+  drawdown_swr:             0.04      # 4% — classic SWR
+
+  # ---------------------------------------------------------------------------
+  # 4. State Pension & NI Tracker (UK)
+  # ---------------------------------------------------------------------------
+  # Update annually after HMRC / DWP uprating announcements.
+  # ---------------------------------------------------------------------------
+
+  # Full new State Pension weekly amount (2024/25)
+  state_pension_weekly_full:  221.20    # £221.20/week = £11,502.40/year
+
+  # NI qualifying years required for full new State Pension
+  ni_full_qualifying_years:   35
+
+  # Class 3 voluntary NI contribution weekly rate (2024/25)
+  # Filling one full gap year costs: ni_class3_weekly_rate × 52 = ~£907/yr
+  ni_class3_weekly_rate:      17.45
+
+  # State pension deferral bonus — income increase per week of deferral
+  # UK: 1% additional per 9 weeks of deferral = 0.001/9 per week ≈ 0.0111%/week
+  deferral_bonus_per_week:    0.001111  # 1/9 % per week
+
+  # Triple lock uprating — assumed annual increase in state pension
+  # Use the higher of: CPI inflation | average earnings growth | 2.5%
+  triple_lock_rate:           0.025     # 2.5% — conservative estimate
+
+  # ---------------------------------------------------------------------------
+  # 5. Emergency Fund
+  # ---------------------------------------------------------------------------
+  # Measures how many months of current expenses are held in liquid accessible
+  # accounts (ISA, cash ISA, general savings — NOT pensions or GIA holdings).
+  # ---------------------------------------------------------------------------
+  emergency_fund_target_months: 6.0    # 6 months = 'adequate' (green)
+  emergency_fund_amber_months:  3.0    # 3 months = 'amber' warning
+                                       # <3 months = 'critical' (red)
