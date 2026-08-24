@@ -332,6 +332,13 @@ def create_app() -> FastAPI:
 def _register_routers(app: FastAPI) -> None:
     """
     @brief Register all API route modules with the FastAPI application.
+
+    Registers all phase routers under the /api prefix:
+      Phase 1–3: simulation, scenarios, accounts, tax, checkpoints, sync, market_data
+      Phase 4:   retirement
+      Phase 5:   planning
+      Phase 6:   reports
+
     @param app FastAPI application instance.
     """
     try:
@@ -345,13 +352,38 @@ def _register_routers(app: FastAPI) -> None:
             tax,
         )
 
-        app.include_router(simulation.router, prefix="/api", tags=["simulation"])
-        app.include_router(scenarios.router, prefix="/api", tags=["scenarios"])
-        app.include_router(accounts.router, prefix="/api", tags=["accounts"])
-        app.include_router(tax.router, prefix="/api", tags=["tax"])
-        app.include_router(checkpoints.router, prefix="/api", tags=["checkpoints"])
-        app.include_router(sync.router, prefix="/api", tags=["sync"])
-        app.include_router(market_data.router, prefix="/api", tags=["market-data"])
+        # ── Phase 1–3 routers ─────────────────────────────────────────────────
+        app.include_router(simulation.router,   prefix="/api", tags=["simulation"])
+        app.include_router(scenarios.router,    prefix="/api", tags=["scenarios"])
+        app.include_router(accounts.router,     prefix="/api", tags=["accounts"])
+        app.include_router(tax.router,          prefix="/api", tags=["tax"])
+        app.include_router(checkpoints.router,  prefix="/api", tags=["checkpoints"])
+        app.include_router(sync.router,         prefix="/api", tags=["sync"])
+        app.include_router(market_data.router,  prefix="/api", tags=["market-data"])
+
+        # ── Phase 4: Retirement planning ─────────────────────────────────────
+        try:
+            from backend.api.routes import retirement
+            app.include_router(retirement.router, prefix="/api", tags=["retirement"])
+            logger.debug("_register_routers: retirement router registered")
+        except ImportError as exc:
+            logger.warning("retirement router not available: %s", exc)
+
+        # ── Phase 5: Advanced planning ────────────────────────────────────────
+        try:
+            from backend.api.routes import planning
+            app.include_router(planning.router, prefix="/api", tags=["planning"])
+            logger.debug("_register_routers: planning router registered")
+        except ImportError as exc:
+            logger.warning("planning router not available: %s", exc)
+
+        # ── Phase 6: Report export ────────────────────────────────────────────
+        try:
+            from backend.api.routes import reports
+            app.include_router(reports.router, prefix="/api", tags=["reports"])
+            logger.debug("_register_routers: reports router registered")
+        except ImportError as exc:
+            logger.warning("reports router not available: %s", exc)
 
         logger.debug("_register_routers: all routers registered")
     except Exception as exc:
