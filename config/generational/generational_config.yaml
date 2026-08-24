@@ -1,0 +1,504 @@
+# =============================================================================
+# LifeLedger — Generational & Cross-Jurisdiction Configuration (Phase 7)
+# =============================================================================
+# Covers all assumptions for multi-generation and UK vs US comparison modelling.
+# All monetary values in the native currency of the path (GBP for UK, USD for US).
+# Rates as decimals. Ages in years.
+# =============================================================================
+
+generational:
+
+  # ---------------------------------------------------------------------------
+  # Parents
+  # ---------------------------------------------------------------------------
+  parents:
+    person1:
+      id: person1
+      birth_year: 1980              # ← replace with your birth year
+      life_expectancy: 87
+      retire_year: 2045
+
+    person2:
+      id: person2
+      birth_year: 1982              # ← replace with partner's birth year
+      life_expectancy: 90
+      retire_year: 2046
+
+    # Starting assets (2026 baseline, in each currency as held)
+    starting_assets:
+      uk_sipp_gbp: 150000           # ← replace with your pension value
+      uk_isa_gbp: 120000            # ← replace with your ISA value
+      us_equities_usd: 0            # ← replace if holding US assets
+
+    # ── US working phase (if applicable) ──────────────────────────────────────
+    us_phase:
+      enabled: false                # set true if you have a US working phase
+      start_year: 2026
+      end_year: 2028
+      gross_salary_usd: 600000      # combined household gross
+      state: WA                     # WA = 0% state income tax
+      k401_employee: 23500          # 2024 IRS limit
+      k401_employer_match: 10000
+      annual_living_cost_usd: 150000
+      extra_savings_target_usd: 100000
+
+    # ── UK working phase ───────────────────────────────────────────────────────
+    uk_phase:
+      start_year: 2026              # adjust if US phase runs first
+      primary_gross_gbp: 80000      # ← replace
+      spouse_gross_gbp: 55000       # ← replace
+      primary_pension_rate: 0.05    # employee contribution rate
+      employer_pension_rate: 0.05
+      isa_annual_contribution: 20000
+      annual_living_cost_gbp: 36000
+
+    # Social Security / State Pension
+    social_security:
+      us_monthly_benefit_usd: 2300  # estimated monthly at age 67
+      us_claim_age: 67
+      uk_state_pension_weekly_gbp: 221.20
+      uk_state_pension_age: 67
+
+
+  # ---------------------------------------------------------------------------
+  # Offspring
+  # ---------------------------------------------------------------------------
+  offspring:
+
+    - id: offspring1
+      name: "Child"                 # ← replace with actual name
+      birth_year: 2017              # ← replace
+      life_expectancy: 92
+      projection_end_year: 2109
+      default_career_path: software_engineer
+      default_country: uk
+
+      university:
+        uk_start_year: 2035
+        uk_duration_years: 3
+        us_start_year: 2035
+        us_duration_years: 4
+
+      # LISA for UK first home deposit assistance
+      lisa:
+        enabled: true
+        annual_contribution: 4000   # max
+        government_bonus_pct: 0.25  # 25% of contributions = £1,000/yr bonus
+        start_year: 2035            # eligible from 18th birthday
+        projected_balance_at_first_home: 22000
+
+
+  # ---------------------------------------------------------------------------
+  # Career Paths (10 archetypes, UK and US salary curves)
+  # Salary values are real (inflation-adjusted to 2026 base).
+  # Phases: entry → mid → senior → peak → wind_down
+  # ---------------------------------------------------------------------------
+  career_paths:
+
+    - id: software_engineer
+      label: "Software Engineer"
+      ceiling: high
+      uk:
+        entry_salary: 45000
+        entry_age: 22
+        mid_salary: 95000
+        mid_age: 32
+        senior_salary: 150000
+        senior_age: 40
+        peak_salary: 160000
+        peak_age: 48
+        wind_down_age: 58
+        wind_down_salary: 120000
+      us:
+        entry_salary: 120000
+        entry_age: 22
+        mid_salary: 200000
+        mid_age: 30
+        senior_salary: 300000
+        senior_age: 38
+        peak_salary: 350000
+        peak_age: 45
+        wind_down_age: 55
+        wind_down_salary: 250000
+
+    - id: doctor
+      label: "Doctor / Physician"
+      ceiling: high
+      uk:
+        entry_salary: 35000         # FY1
+        entry_age: 25               # after 5yr med school
+        mid_salary: 75000           # registrar
+        mid_age: 32
+        senior_salary: 120000       # consultant
+        senior_age: 38
+        peak_salary: 130000
+        peak_age: 50
+        wind_down_age: 60
+        wind_down_salary: 100000
+      us:
+        entry_salary: 65000         # intern/resident
+        entry_age: 26
+        mid_salary: 200000          # attending
+        mid_age: 32
+        senior_salary: 350000
+        senior_age: 40
+        peak_salary: 400000
+        peak_age: 52
+        wind_down_age: 60
+        wind_down_salary: 300000
+
+    - id: lawyer
+      label: "Solicitor / Lawyer"
+      ceiling: high
+      uk:
+        entry_salary: 50000         # NQ at London firm
+        entry_age: 24
+        mid_salary: 90000
+        mid_age: 32
+        senior_salary: 140000
+        senior_age: 40
+        peak_salary: 200000         # partner
+        peak_age: 45
+        wind_down_age: 58
+        wind_down_salary: 150000
+      us:
+        entry_salary: 190000        # BigLaw associate
+        entry_age: 25
+        mid_salary: 250000
+        mid_age: 32
+        senior_salary: 400000       # senior associate / partner
+        senior_age: 40
+        peak_salary: 600000
+        peak_age: 48
+        wind_down_age: 58
+        wind_down_salary: 350000
+
+    - id: data_scientist
+      label: "Data Scientist / ML Engineer"
+      ceiling: high
+      uk:
+        entry_salary: 42000
+        entry_age: 22
+        mid_salary: 85000
+        mid_age: 30
+        senior_salary: 130000
+        senior_age: 38
+        peak_salary: 150000
+        peak_age: 46
+        wind_down_age: 56
+        wind_down_salary: 120000
+      us:
+        entry_salary: 130000
+        entry_age: 22
+        mid_salary: 220000
+        mid_age: 30
+        senior_salary: 320000
+        senior_age: 38
+        peak_salary: 400000
+        peak_age: 46
+        wind_down_age: 56
+        wind_down_salary: 280000
+
+    - id: nurse
+      label: "Nurse / Healthcare Professional"
+      ceiling: mid
+      uk:
+        entry_salary: 28000         # Band 5 NHS
+        entry_age: 22
+        mid_salary: 40000           # Band 7
+        mid_age: 32
+        senior_salary: 55000        # Band 8a
+        senior_age: 42
+        peak_salary: 60000
+        peak_age: 50
+        wind_down_age: 58
+        wind_down_salary: 50000
+      us:
+        entry_salary: 65000
+        entry_age: 22
+        mid_salary: 90000
+        mid_age: 32
+        senior_salary: 110000
+        senior_age: 42
+        peak_salary: 120000
+        peak_age: 50
+        wind_down_age: 58
+        wind_down_salary: 95000
+
+    - id: accountant
+      label: "Accountant / Finance Professional"
+      ceiling: mid_high
+      uk:
+        entry_salary: 35000
+        entry_age: 22
+        mid_salary: 65000
+        mid_age: 32
+        senior_salary: 100000
+        senior_age: 40
+        peak_salary: 130000
+        peak_age: 50
+        wind_down_age: 58
+        wind_down_salary: 100000
+      us:
+        entry_salary: 65000
+        entry_age: 22
+        mid_salary: 110000
+        mid_age: 32
+        senior_salary: 180000
+        senior_age: 40
+        peak_salary: 220000
+        peak_age: 50
+        wind_down_age: 58
+        wind_down_salary: 180000
+
+    - id: teacher
+      label: "Teacher / Educator"
+      ceiling: low_mid
+      uk:
+        entry_salary: 30000         # MPS1
+        entry_age: 22
+        mid_salary: 44000           # UPS3 / London weighting
+        mid_age: 32
+        senior_salary: 60000        # leadership
+        senior_age: 40
+        peak_salary: 65000
+        peak_age: 48
+        wind_down_age: 57           # early retirement common in teaching
+        wind_down_salary: 55000
+      us:
+        entry_salary: 42000
+        entry_age: 22
+        mid_salary: 60000
+        mid_age: 32
+        senior_salary: 80000        # department head / admin
+        senior_age: 40
+        peak_salary: 90000
+        peak_age: 48
+        wind_down_age: 57
+        wind_down_salary: 75000
+
+    - id: finance
+      label: "Finance / Investment Banking"
+      ceiling: very_high
+      uk:
+        entry_salary: 60000         # analyst
+        entry_age: 22
+        mid_salary: 120000          # associate
+        mid_age: 28
+        senior_salary: 250000       # VP / director
+        senior_age: 35
+        peak_salary: 500000         # MD (incl. bonus)
+        peak_age: 45
+        wind_down_age: 55
+        wind_down_salary: 300000
+      us:
+        entry_salary: 150000        # analyst (NYC)
+        entry_age: 22
+        mid_salary: 300000
+        mid_age: 28
+        senior_salary: 600000
+        senior_age: 35
+        peak_salary: 1200000        # MD (incl. bonus)
+        peak_age: 45
+        wind_down_age: 55
+        wind_down_salary: 700000
+
+    - id: entrepreneur
+      label: "Entrepreneur / Founder"
+      ceiling: variable
+      uk:
+        entry_salary: 25000         # early stage — paying themselves little
+        entry_age: 24
+        mid_salary: 70000           # Series A / growing
+        mid_age: 32
+        senior_salary: 180000       # successful exit / scale-up
+        senior_age: 38
+        peak_salary: 250000
+        peak_age: 45
+        wind_down_age: 55
+        wind_down_salary: 150000
+      us:
+        entry_salary: 50000
+        entry_age: 24
+        mid_salary: 150000
+        mid_age: 32
+        senior_salary: 400000
+        senior_age: 38
+        peak_salary: 600000
+        peak_age: 45
+        wind_down_age: 55
+        wind_down_salary: 300000
+
+    - id: tradesperson
+      label: "Tradesperson / Skilled Trade"
+      ceiling: mid
+      uk:
+        entry_salary: 24000
+        entry_age: 20               # apprenticeship
+        mid_salary: 40000
+        mid_age: 30
+        senior_salary: 55000        # self-employed / foreman
+        senior_age: 38
+        peak_salary: 65000
+        peak_age: 46
+        wind_down_age: 58
+        wind_down_salary: 45000
+      us:
+        entry_salary: 45000
+        entry_age: 20
+        mid_salary: 70000
+        mid_age: 30
+        senior_salary: 95000
+        senior_age: 38
+        peak_salary: 110000
+        peak_age: 46
+        wind_down_age: 58
+        wind_down_salary: 80000
+
+
+  # ---------------------------------------------------------------------------
+  # Country Macro Assumptions (Low / Mid / High scenarios)
+  # ---------------------------------------------------------------------------
+  country_macro:
+
+    UK:
+      low:
+        inflation: 0.035
+        equity_real_return: 0.030
+        salary_real_growth: 0.000
+        house_price_nominal: 0.030
+        income_tax_drag_factor: 1.00   # no additional drag
+        annual_healthcare_cost: 0      # NHS free at point of use
+      mid:
+        inflation: 0.025
+        equity_real_return: 0.050
+        salary_real_growth: 0.010
+        house_price_nominal: 0.035
+        income_tax_drag_factor: 1.00
+        annual_healthcare_cost: 0
+      high:
+        inflation: 0.020
+        equity_real_return: 0.075
+        salary_real_growth: 0.020
+        house_price_nominal: 0.045
+        income_tax_drag_factor: 1.00
+        annual_healthcare_cost: 0
+
+    US:
+      low:
+        inflation: 0.030
+        equity_real_return: 0.035
+        salary_real_growth: 0.010
+        house_price_nominal: 0.030
+        income_tax_drag_factor: 1.00
+        healthcare_working: 10000      # employer plan annual OOP
+        healthcare_aca_bridge: 26000   # couple, ages 62–65
+        healthcare_medicare: 14000     # couple, ages 65–79
+        healthcare_late_life: 36000    # ages 80+
+      mid:
+        inflation: 0.025
+        equity_real_return: 0.060
+        salary_real_growth: 0.018
+        house_price_nominal: 0.045
+        income_tax_drag_factor: 1.00
+        healthcare_working: 10000
+        healthcare_aca_bridge: 26000
+        healthcare_medicare: 14000
+        healthcare_late_life: 36000
+      high:
+        inflation: 0.020
+        equity_real_return: 0.080
+        salary_real_growth: 0.025
+        house_price_nominal: 0.055
+        income_tax_drag_factor: 1.00
+        healthcare_working: 8000
+        healthcare_aca_bridge: 22000
+        healthcare_medicare: 12000
+        healthcare_late_life: 30000
+
+
+  # ---------------------------------------------------------------------------
+  # University Costs
+  # ---------------------------------------------------------------------------
+  university:
+
+    uk:
+      tuition_per_year: 9250        # Plan 5 annual tuition cap
+      living_costs_per_year: 12000  # moderate estimate
+      parent_contribution_total: 20000
+      student_loan_plan: 5
+      loan_repayment_threshold: 25000
+      loan_repayment_rate: 0.09     # 9% of income above threshold
+      loan_write_off_years: 40
+      loan_interest_rate: 0.045     # RPI + 1.5% approx
+
+    us:
+      low:                          # in-state public
+        type: in_state_public
+        tuition_per_year: 14000
+        living_per_year: 18000
+        funding: 529_plan
+      mid:                          # out-of-state public / mid private
+        type: out_of_state_public
+        tuition_per_year: 28000
+        living_per_year: 20000
+        funding: 529_plan
+      high:                         # elite private
+        type: elite_private
+        tuition_per_year: 62000
+        living_per_year: 25000
+        funding: scholarships_and_loans
+
+    # 529 plan assumptions (if used)
+    plan_529:
+      current_balance: 136000       # USD at offspring university start
+      annual_contribution_before_start: 0
+      growth_rate: 0.07
+      state_tax_deduction_rate: 0.0  # varies; 0 for WA
+
+
+  # ---------------------------------------------------------------------------
+  # FX Rate Scenarios (GBP / USD)
+  # ---------------------------------------------------------------------------
+  fx:
+    scenarios:
+      low:  1.18    # weak GBP (unfavourable for UK path in USD terms)
+      mid:  1.27    # current mid-market
+      high: 1.38    # strong GBP (favourable for UK path)
+    annual_drift: 0.0     # mean-reversion assumption: 0 = flat
+
+
+  # ---------------------------------------------------------------------------
+  # Estate / Tax Handoff
+  # ---------------------------------------------------------------------------
+  estate:
+    uk:
+      nil_rate_band: 325000
+      residence_nil_rate_band: 175000
+      iht_rate: 0.40
+      pension_outside_estate: true  # pre-April 2027 rules default; set false for post-2027
+    us:
+      federal_exemption: 14000000   # per person (2026 OBBBA levels)
+      estate_tax_rate: 0.40
+      stepped_up_basis: true        # inherited assets get cost-basis step-up to FMV at death
+
+
+  # ---------------------------------------------------------------------------
+  # Offspring account growth assumptions
+  # ---------------------------------------------------------------------------
+  offspring_accounts:
+    uk:
+      isa_growth_rate: 0.07
+      sipp_growth_rate: 0.07
+      gia_growth_rate: 0.062
+      savings_interest_rate: 0.035
+      isa_annual_limit: 20000
+      sipp_annual_limit: 60000
+      savings_rate_of_income: 0.20    # fraction of net income routed to savings
+    us:
+      k401_growth_rate: 0.075
+      roth_growth_rate: 0.075
+      taxable_growth_rate: 0.065
+      k401_employee_limit: 23500      # 2024 IRS limit
+      roth_ira_limit: 7000
+      savings_rate_of_income: 0.20
