@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { GitBranch, Plus, X, Check, TrendingUp } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -607,6 +608,173 @@ export function ScenariosScreen() {
             </code>{' '}
             to compare financial futures.
           </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Annual Review — Phase 12
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function AnnualReviewPanel({ scenarioPath, timeline, monteCarlo }: {
+  scenarioPath: string; timeline: any; monteCarlo: any
+}) {
+  const [saving, setSaving]       = useState(false)
+  const [saved, setSaved]         = useState(false)
+  const [reviewing, setReviewing] = useState(false)
+  const [review, setReview]       = useState<any>(null)
+  const [baselineId, setBaselineId] = useState('')
+  const { data: snapshots=[], refetch } = useQuery<any[]>({
+    queryKey: ['review-snapshots', scenarioPath],
+    queryFn: () => apiClient.get(`/insights/snapshots?scenario_path=${encodeURIComponent(scenarioPath)}`).then(r=>r.data),
+    staleTime: 30_000,
+  })
+
+  const latestSnap = timeline?.years?.at(-1)
+  const currentNW  = latestSnap?.total_net_worth ?? 0
+  const fireYear   = timeline?.fire_year
+
+  async function saveSnapshot() {
+    setSaving(true)
+    try {
+      await apiClient.post('/insights/snapshot', {
+        scenario_path: scenarioPath,
+        net_worth: currentNW,
+        fire_year: fireYear,
+        pension_value: 0,
+        isa_value: 0,
+        savings_value: 0,
+        annual_spending: 0,
+        prob_fire: monteCarlo?.prob_fire ?? 0,
+      })
+      setSaved(true)
+      refetch()
+      setTimeout(() => setSaved(false), 3000)
+    } catch(e) { console.error(e) }
+    finally { setSaving(false) }
+  }
+
+  async function generateReview() {
+    if (!baselineId) return
+    setReviewing(true)
+    try {
+      const r = await apiClient.post('/insights/review', {
+        scenario_path: scenarioPath,
+        baseline_id: baselineId,
+        net_worth: currentNW,
+        fire_year: fireYear,
+        pension_value: 0, isa_value: 0, savings_value: 0,
+        annual_spending: 0,
+        prob_fire: monteCarlo?.prob_fire ?? 0,
+      })
+      setReview(r.data)
+    } catch(e) { console.error(e) }
+    finally { setReviewing(false) }
+  }
+
+  const fmt = (v: number) => v>=1_000_000?`£${(v/1_000_000).toFixed(2)}M`:v>=1_000?`£${(v/1_000).toFixed(1)}k`:`£${v.toLocaleString()}`
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Save snapshot */}
+      <div style={{ background:'#162236', borderRadius:12, padding:'16px 20px',
+                    border:'1px solid rgba(255,255,255,0.07)' }}>
+        <h3 style={{ color:'#e8edf2', fontSize:13, fontWeight:600, margin:'0 0 8px' }}>
+          Save Snapshot for Review
+        </h3>
+        <p style={{ color:'#8fa3b8', fontSize:12, lineHeight:1.5, margin:'0 0 12px' }}>
+          Save today's simulation state as a baseline. Return in 6-12 months to generate a review
+          comparing what changed. Current net worth: <strong style={{ color:'#0e9aad',
+          fontFamily:'DM Mono, monospace' }}>{fmt(currentNW)}</strong>
+        </p>
+        <button onClick={saveSnapshot} disabled={saving || !currentNW}
+                style={{ background:'#0e9aad', color:'#fff', border:'none', borderRadius:8,
+                          padding:'9px 22px', fontSize:13, fontWeight:600,
+                          cursor:saving?'not-allowed':'pointer', opacity:saving||!currentNW?0.6:1 }}>
+          {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Snapshot'}
+        </button>
+      </div>
+
+      {/* Saved snapshots */}
+      {snapshots.length > 0 && (
+        <div style={{ background:'#162236', borderRadius:12, padding:'16px 20px',
+                      border:'1px solid rgba(255,255,255,0.07)' }}>
+          <h3 style={{ color:'#e8edf2', fontSize:13, fontWeight:600, margin:'0 0 12px' }}>
+            Generate Annual Review
+          </h3>
+          <div style={{ marginBottom:12 }}>
+            <label style={{ color:'#8fa3b8', fontSize:11, display:'block', marginBottom:4 }}>
+              Compare current state against:
+            </label>
+            <select value={baselineId} onChange={e=>setBaselineId(e.target.value)}
+                    style={{ background:'#0f1b2d', border:'1px solid #30363d', borderRadius:6,
+                              color:'#e8edf2', padding:'7px 10px', fontSize:12, minWidth:200 }}>
+              <option value="">— select a snapshot —</option>
+              {snapshots.map((s:any) => (
+                <option key={s.id} value={s.id}>
+                  {s.snapshot_date} — {fmt(s.net_worth)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button onClick={generateReview} disabled={reviewing || !baselineId || !currentNW}
+                  style={{ background:'#d4a843', color:'#0f1b2d', border:'none', borderRadius:8,
+                            padding:'9px 22px', fontSize:13, fontWeight:700,
+                            cursor:reviewing||!baselineId?'not-allowed':'pointer',
+                            opacity:reviewing||!baselineId?0.6:1 }}>
+            {reviewing ? 'Generating…' : 'Generate Review'}
+          </button>
+        </div>
+      )}
+
+      {/* Review result */}
+      {review && (
+        <div style={{ background:'#162236', borderRadius:12, padding:'18px 20px',
+                      border:'1px solid rgba(212,168,67,0.4)' }}>
+          <div style={{ color:'#d4a843', fontSize:16, fontWeight:700, marginBottom:6 }}>
+            {review.headline}
+          </div>
+          <div style={{ color:'#8fa3b8', fontSize:11, marginBottom:14 }}>
+            {review.review_date} · compared to {review.baseline_date} ({review.period_label})
+          </div>
+          <p style={{ color:'#e8edf2', fontSize:13, lineHeight:1.7, margin:'0 0 16px',
+                      background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'12px 16px' }}>
+            {review.narrative}
+          </p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {review.metrics.map((m:any,i:number) => (
+              <div key={i} style={{ background:'#0f1b2d', borderRadius:8, padding:'10px 14px' }}>
+                <div style={{ color:'#8b949e', fontSize:10, textTransform:'uppercase' }}>{m.label}</div>
+                <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:16, fontWeight:700 }}>
+                  {m.unit==='%' ? m.current.toFixed(1)+'%' : `£${m.current.toLocaleString()}`}
+                </div>
+                <div style={{ color:m.better?'#2dbd7e':'#e05252', fontSize:11, fontFamily:'DM Mono, monospace' }}>
+                  {m.delta>=0?'+':''}{m.unit==='%'?m.delta.toFixed(1)+'%':`£${m.delta.toLocaleString()}`}
+                  <span style={{ color:'#8b949e', marginLeft:6 }}>({m.delta_pct>=0?'+':''}{m.delta_pct.toFixed(1)}%)</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {review.fire_delta_months !== 0 && (
+            <div style={{ marginTop:12, padding:'8px 14px',
+                          background: review.fire_delta_months>0?'#2dbd7e11':'#e0525211',
+                          border:`1px solid ${review.fire_delta_months>0?'#2dbd7e44':'#e0525244'}`,
+                          borderRadius:8, color:review.fire_delta_months>0?'#2dbd7e':'#e05252',
+                          fontSize:12, fontWeight:600 }}>
+              FIRE date moved {review.fire_delta_months>0?'closer':'further'}:&nbsp;
+              {Math.abs(review.fire_delta_months)} months {review.fire_delta_months>0?'ahead':'behind'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {snapshots.length === 0 && (
+        <div style={{ color:'#8fa3b8', fontSize:12, textAlign:'center', padding:20 }}>
+          Save your first snapshot above. After 6-12 months, return here to generate a review
+          comparing how your plan evolved.
         </div>
       )}
     </div>
