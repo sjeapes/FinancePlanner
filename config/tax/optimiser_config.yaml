@@ -1,0 +1,155 @@
+# =============================================================================
+# LifeLedger — Tax Optimiser Configuration (Phase 8)
+# =============================================================================
+# Controls all tax-optimisation strategies. Every strategy can be toggled
+# independently. Change values here; no engine code changes required.
+# =============================================================================
+
+tax_optimiser:
+
+  # ---------------------------------------------------------------------------
+  # Band-filler — optimal SIPP/pension drawdown to fill tax bands each year
+  # ---------------------------------------------------------------------------
+  # Strategy: each year in retirement, draw from pension just enough to fill
+  # the personal allowance + basic-rate band (or up to your target band), then
+  # top up the remainder of target spending from ISA (tax-free).
+  # This minimises the amount of pension income taxed at higher rates.
+  #
+  # "naive" comparison baseline: proportional drawdown (same % from each pot
+  # every year regardless of tax position).
+  # ---------------------------------------------------------------------------
+  band_filler:
+    enabled: true
+
+    # Target band to fill:
+    #   personal_allowance  → draw up to £12,570 (0% tax only)
+    #   basic_rate          → draw up to £50,270 (0% + 20% — most common)
+    #   higher_rate         → draw up to £125,140 (for large pension pots)
+    target_band: basic_rate
+
+    # Safety buffer: leave this much of the band unfilled to avoid accidental
+    # band breach due to rounding or minor income surprises.
+    safety_buffer_gbp: 300.0
+
+    # Income sources to include in the "other income" base before filling bands.
+    include_state_pension: true
+    include_rental_income: true
+    include_dividend_income: true
+
+    # Naive baseline: fraction of target spending drawn from pension (rest from ISA).
+    # Default 0.6 assumes a typical retiree with 60% pension / 40% ISA split.
+    naive_pension_fraction: 0.60
+
+    # Apply triple-lock state pension growth (2.5% floor).
+    state_pension_triple_lock: true
+    triple_lock_floor: 0.025
+
+
+  # ---------------------------------------------------------------------------
+  # UFPLS vs PCLS — compare two pension crystallisation strategies
+  # ---------------------------------------------------------------------------
+  # PCLS (Pension Commencement Lump Sum):
+  #   Take 25% of the pension pot as a tax-free lump sum at crystallisation.
+  #   The remaining 75% enters drawdown and every withdrawal is fully taxable.
+  #
+  # UFPLS (Uncrystallised Funds Pension Lump Sum):
+  #   Each withdrawal is 25% tax-free / 75% taxable.
+  #   No upfront lump sum; tax-free allowance is spread across all withdrawals.
+  #
+  # PCLS tends to be better when:
+  #   - You need a large lump sum at retirement (e.g. mortgage payoff).
+  #   - Your marginal rate is expected to rise in retirement.
+  # UFPLS tends to be better when:
+  #   - You are already a basic-rate taxpayer in retirement.
+  #   - Your pot is large and you want to defer crystallisation.
+  # ---------------------------------------------------------------------------
+  ufpls:
+    enabled: true
+    tax_free_fraction: 0.25            # statutory — do not change
+    crystallisation_year: null         # null = retirement year from scenario
+    annual_withdrawal_gbp: null        # null = from target spending
+
+    # Whether to reinvest the PCLS lump sum and model its growth separately.
+    pcls_reinvest_lump_sum: true
+    pcls_reinvest_growth_rate: 0.06    # return on reinvested lump sum
+
+
+  # ---------------------------------------------------------------------------
+  # CGT harvest scheduler
+  # ---------------------------------------------------------------------------
+  # Each tax year, check whether unrealised gains in the GIA (General
+  # Investment Account) are below the annual CGT exemption. If so, recommend
+  # selling and rebuying to reset the cost basis — future gains will then be
+  # measured from a higher starting point, reducing lifetime CGT liability.
+  #
+  # Also flags opportunities to crystallise losses to offset future gains.
+  # ---------------------------------------------------------------------------
+  cgt_harvest:
+    enabled: true
+
+    # Annual CGT exempt amount (£3,000 for 2024/25).
+    # Set to null to auto-load from the active tax profile.
+    annual_exempt_gbp: 3000.0
+
+    # Harvest when unrealised gain exceeds this threshold (avoid tiny trades).
+    harvest_trigger_gbp: 500.0
+
+    # Maximum % of the GIA to sell in one year (to avoid market impact).
+    max_sell_pct: 1.00                 # 1.0 = sell all if needed
+
+    # Model trading cost per harvest (stamp duty + spread estimate).
+    estimated_trade_cost_gbp: 50.0
+
+    # Also report loss-harvesting opportunities (selling at a loss to bank it).
+    include_loss_harvesting: true
+
+    # Assumed annual gain rate on GIA holdings (if not available from scenario).
+    fallback_gain_rate: 0.07
+
+
+  # ---------------------------------------------------------------------------
+  # Dividend allowance optimiser
+  # ---------------------------------------------------------------------------
+  # Flags when dividend income from GIA holdings exceeds the annual allowance
+  # (£500 for 2024/25) and recommends moving holdings into an ISA wrapper.
+  # ---------------------------------------------------------------------------
+  dividend_optimiser:
+    enabled: true
+    annual_exempt_gbp: 500.0           # 2024/25 allowance
+    dividend_yield_fallback: 0.02      # assumed yield if not specified
+
+
+  # ---------------------------------------------------------------------------
+  # Scottish income tax rates
+  # ---------------------------------------------------------------------------
+  # Scottish residents pay income tax at Scottish rates (set by Scottish
+  # Parliament) rather than UK-wide rates. NI remains UK-wide.
+  # Set scottish_taxpayer: true for Scottish residents.
+  # ---------------------------------------------------------------------------
+  scottish_rates:
+    scottish_taxpayer: false
+    bands:                             # 2024/25 Scottish tax bands
+      - { name: starter,      from:  12571,  to:  14876,  rate: 0.19 }
+      - { name: basic,        from:  14877,  to:  26561,  rate: 0.20 }
+      - { name: intermediate, from:  26562,  to:  43662,  rate: 0.21 }
+      - { name: higher,       from:  43663,  to:  75000,  rate: 0.42 }
+      - { name: advanced,     from:  75001,  to: 125140,  rate: 0.45 }
+      - { name: top,          from: 125141,  to: null,    rate: 0.48 }
+
+
+  # ---------------------------------------------------------------------------
+  # Projection settings (for multi-year modelling)
+  # ---------------------------------------------------------------------------
+  projection:
+    start_year: 2025
+    end_year: 2075
+
+    # Use this inflation rate to uprate tax bands forward if bands are not
+    # configured to grow with CPI in the scenario. UK bands are currently frozen.
+    band_growth_rate: 0.00             # 0.0 = frozen (current UK policy)
+
+    # Nominal portfolio return assumed for UFPLS vs PCLS comparison.
+    nominal_portfolio_return: 0.07
+
+    # Inflation rate for uprating spending needs.
+    inflation_rate: 0.025
