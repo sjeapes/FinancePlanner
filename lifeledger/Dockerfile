@@ -9,21 +9,24 @@
 # -------------------------------------------------------
 # git clone uses libcurl under the hood. In HA's Docker build environment,
 # libcurl has no CA bundle (CAfile: none) and the SSL handshake to GitHub
-# fails even after installing ca-certificates and running update-ca-certificates.
-# The postinstall hook that writes /etc/ssl/certs/ca-certificates.crt is
-# suppressed in this build environment.
+# fails. Solution: download the repo as a tarball with curl -k (-k skips
+# SSL certificate verification). No git, no CA bundle needed.
 #
-# Solution: download the repo as a tarball with curl -k.
-#   -k  skips SSL certificate verification entirely.
-#   -fsSL  fail-fast, silent, follow redirects.
-# This is safe for downloading a public repo you own in a self-hosted context.
-# No git, no CA bundle, no SSL configuration needed.
+# Docker layer cache busting
+# -------------------------------------------------------
+# Docker caches each RUN layer by the command string. The curl tarball URL
+# never changes, so Docker always reuses the cached download layer even when
+# the repo content has changed. To force a fresh download on every release,
+# APP_VERSION is embedded in the RUN echo command — when APP_VERSION changes,
+# Docker sees a different command string and re-runs curl, fetching new source.
 # =============================================================================
 
 # ── Stage 1: build the React frontend ────────────────────────────────────────
 FROM node:22-slim AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner/archive/refs/heads/main.tar.gz
+# Bump APP_VERSION with every release to bust the Docker download cache
+ARG APP_VERSION=1.0.9
 
 # curl    — download repo tarball
 # python3 / make / g++ — node-gyp native build tools (some npm packages need these)
@@ -31,8 +34,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and extract repo — no git, no SSL certificate required
-RUN mkdir -p /src \
+# APP_VERSION in the echo busts the cache — Docker re-downloads on version bump
+RUN echo "Downloading LifeLedger ${APP_VERSION}" \
+    && mkdir -p /src \
     && curl -fsSLk "${REPO_URL}" | tar -xz --strip-components=1 -C /src
 
 WORKDIR /src/frontend
@@ -43,7 +47,7 @@ RUN npm config set fetch-retries 5 \
     && npm config set fetch-retry-maxtimeout 120000
 
 # --legacy-peer-deps: recharts declares React 16-18 as peers; React 19 works
-# at runtime but npm's strict checker refuses without this flag.
+# at runtime but npm strict mode refuses without this flag.
 RUN npm install --legacy-peer-deps
 
 # package.json scripts.build = "tsc -b && vite build"
@@ -55,6 +59,7 @@ RUN npm run build
 FROM python:3.12-slim AS runtime
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner/archive/refs/heads/main.tar.gz
+ARG APP_VERSION=1.0.9
 
 # curl    — download repo tarball
 # gcc/g++ / libffi-dev — some Python wheels need native compilation
@@ -62,8 +67,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl gcc g++ libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and extract repo
-RUN mkdir -p /app \
+RUN echo "Downloading LifeLedger ${APP_VERSION}" \
+    && mkdir -p /app \
     && curl -fsSLk "${REPO_URL}" | tar -xz --strip-components=1 -C /app
 
 WORKDIR /app
@@ -75,14 +80,12 @@ RUN apt-get purge -y curl gcc g++ libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the built React dist from Stage 1
-# backend/main.py._serve_frontend() mounts this via FastAPI StaticFiles
 COPY --from=frontend-build /src/frontend/dist /app/frontend/dist
 
 RUN mkdir -p /app/data/scenarios/templates \
              /app/data/checkpoints \
              /app/data/exports
 
-# Startup script written inline — zero COPY from lifeledger/ build context
 RUN cat > /run.sh << 'RUNSCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -133,7 +136,7 @@ fi
 cat > "${CONFIG_DIR}/lifeledger_config.yaml" << YAML
 app:
   name: "LifeLedger"
-  version: "1.0.7"
+  version: "1.0.9"
   base_currency: "${CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${CONFIG_DIR}/lifeledger.log"
