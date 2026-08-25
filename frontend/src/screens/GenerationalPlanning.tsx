@@ -85,7 +85,7 @@ function Card({ title, children, accent = TEAL }: { title?: string; children: Re
                   borderLeft: `3px solid ${accent}` }}>
       {title && <h3 style={{ color: '#e8edf2', fontSize: 12, fontWeight: 600,
                              textTransform: 'uppercase', letterSpacing: '0.06em',
-                             marginBottom: 14, margin: 0, marginBottom: 12 }}>{title}</h3>}
+                             margin: 0, marginBottom: 12 }}>{title}</h3>}
       {children}
     </div>
   )
