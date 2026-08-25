@@ -130,7 +130,7 @@ function Card({ title, children, accent }: {
     }}>
       <h3 style={{ color: '#e8edf2', fontSize: 13, fontWeight: 600,
                    textTransform: 'uppercase', letterSpacing: '0.05em',
-                   marginBottom: 16, margin: 0, marginBottom: 14 }}>
+                   margin: 0, marginBottom: 14 }}>
         {title}
       </h3>
       {children}
