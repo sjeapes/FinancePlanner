@@ -275,6 +275,7 @@ def _parsed_to_model(ps: ParsedStatement) -> ParsedStatementOut:
     return ParsedStatementOut(
         format=ps.format,
         institution=ps.institution,
+        jurisdiction=getattr(ps, "jurisdiction", "unknown"),
         account_name=ps.account_name,
         suggested_type=ps.suggested_type,
         currency=ps.currency,
