@@ -489,6 +489,14 @@ def _register_routers(app: FastAPI) -> None:
         except ImportError as exc:
             logger.warning("planning_coach router not available: %s", exc)
 
+        # ── Phase 10: Investment opportunity analyser ─────────────────────────
+        try:
+            from backend.api.routes import opportunity_analyser
+            app.include_router(opportunity_analyser.router, prefix="/api", tags=["analyser"])
+            logger.debug("_register_routers: opportunity_analyser router registered")
+        except ImportError as exc:
+            logger.warning("opportunity_analyser router not available: %s", exc)
+
         logger.debug("_register_routers: all routers registered")
     except Exception as exc:
         logger.error("_register_routers: failed to register routers: %s", exc, exc_info=True)
