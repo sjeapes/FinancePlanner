@@ -1282,7 +1282,90 @@ generational:
   career_paths: [see §12.2 above — stored inline or imported from careers_config.yaml]
 ```
 
-*Last updated: 2026-08-24. Maintained by Claude on behalf of the project owner.*
+*Last updated: 2026-08-25. Maintained by Claude on behalf of the project owner.*
+
+---
+
+## 14. Work completed 2026-08-25
+
+### 14.1 HA add-on deployment resolved
+
+Root cause: Docker cached the `npm install` + `npm run build` layers from a failed 1.2.1 build. Subsequent update attempts reused those stale cached layers (same `APP_VERSION=1.2.1` cache key) regardless of source changes.
+
+Fix: uninstall add-on → `ha_manage_app(action='remove_repository')` → `ha_manage_app(action='add_repository')` → fresh git clone picks up 1.2.3 → Docker cache miss on new `APP_VERSION` → clean build succeeds.
+
+Add-on running at **1.3.0** (started, accessible via HA Ingress). LifeLedger icon pushed (`lifeledger/icon.png` 250×250, `lifeledger/logo.png` 250×100) — dark navy background, dollar bill + rising chart line, LifeLedger gold/teal palette.
+
+### 14.2 Why HA doesn't auto-detect updates
+
+The Supervisor refreshes repository git clones periodically (~24 hours) or on manual store reload (Settings → Add-ons → Add-on Store → ⋮ → Reload). Until the git clone is refreshed, `version_latest` stays at the last-seen version. The `APP_VERSION` ARG in the Dockerfile only busts the Docker *layer* cache; the Supervisor git clone must be updated first for the Supervisor to know a new version exists.
+
+### 14.3 Screen rebuilds
+
+**RetirementPlanner.tsx** — full rebuild with 4 tabs consuming existing Phase 4 retirement engine endpoints:
+- Income Coverage tab: year-by-year income vs expenses bar chart, coverage ratio table, surplus/shortfall chart. Calls `GET /api/retirement/income-coverage`.
+- Drawdown Strategy tab: ISA-first vs SIPP-first vs GIA-first vs optimised comparison. Bar charts (lifetime tax + pot at death), strategy detail cards with recommended badge. Calls `GET /api/retirement/drawdown-order`.
+- Annuity vs Drawdown tab: level / inflation-linked / joint-life annuity cards, break-even age, income at 80 and 90. Calls `GET /api/retirement/annuity`.
+- State Pension tab: NI qualifying years per person, Class 3 top-up cost and ROI, state pension accumulation area chart. Calls `GET /api/retirement/state-pension`.
+
+**PortfolioMixScreen.tsx** — added target allocation sliders and rebalancing:
+- Target allocation panel with per-bucket sliders (0–80%), drift indicator (actual vs target %).
+- Rebalancing actions table: shows "Buy £X" or "Sell £X" for each bucket where drift > 0.5%.
+- Holdings table for investment accounts retained.
+
+**CheckpointsScreen.tsx** — add/delete CRUD + divergence analysis:
+- Add checkpoint form: date picker, net worth input, optional note.
+- Delete button on each checkpoint.
+- Divergence chart (actual vs projected) when ≥ 2 checkpoints are present and a simulation has been run.
+- Delta indicator on each card: "▲ +£42k vs projected" or "▼ -£18k vs projected".
+
+### 14.4 Investment opportunity analyser (Phase 10)
+
+**`backend/engine/opportunity_analyser.py`** — DCA simulation engine:
+- `analyse_opportunity(tickers, start_date, end_date, initial_lump_sum, monthly_contribution)` → `OpportunityResult`.
+- Fetches monthly prices via `yfinance.download` (already in requirements.txt).
+- Converts pence to pounds for London-listed ETFs (price > 1000 heuristic).
+- Per-fund: total invested, final value, total gain, gain %, CAGR.
+- `FUND_CATALOGUE`: 10 pre-defined LSE ETFs (VWRP, VUSA, CSP1, IWDA, SWRD, VFEM, VUKE, IUSA, AGGG, IGLT).
+
+**`backend/api/routes/opportunity_analyser.py`** — two endpoints:
+- `GET /api/analyser/funds` — fund catalogue.
+- `POST /api/analyser/compare` — DCA comparison (up to 6 tickers, max).
+
+**`frontend/src/screens/OpportunityAnalyser.tsx`** — new screen:
+- Date range pickers, lump sum and monthly inputs.
+- Fund picker (checkbox buttons, max 6, colour-coded).
+- Missed opportunity hero card (cash vs best fund).
+- Per-fund result cards (final value, total gain, gain %, CAGR, best badge).
+- Portfolio trajectory line chart + CAGR comparison bar chart.
+- Methodology note.
+- Added to Sidebar (BarChart2 icon, Planning group), MobileNav, App.tsx.
+
+### 14.5 Add-on icon
+
+`lifeledger/icon.png` (250×250) and `lifeledger/logo.png` (250×100) generated with Pillow.
+- Icon: dark navy rounded square, forest-green dollar bill with cream $ sign, gold ascending chart line with area fill and terminal glow dot.
+- Logo: landscape banner, miniature bill+chart, "LifeLedger" bold white, "Financial Planning & FIRE" subtitle, teal accent line.
+
+### 14.6 Current version and state
+
+- **Version**: 1.3.0 (running in HA)
+- **Screens**: 12 (added OpportunityAnalyser)
+- **Engines**: 17 (added opportunity_analyser.py)
+- **Routes**: 18 (added opportunity_analyser.py)
+- **Tests**: 2 files, 75+ assertions
+
+### 14.7 Remaining work
+
+- CLAUDE.md update ✅ (this section)
+- Real data entry via Data Management UI (base.yaml still has dummy data)
+- Phase 1 regression anchors in test_engines.py need updating after real data entered
+- Phase 11 (Collaboration): read-only share link, scenario comments, IFA export pack
+- Phase 12 (Intelligence): NLP scenario builder, annual review automation, MC insight surfacing
+- ISIN resolver (OpenFIGI API) — minor utility for imported holdings enrichment
+- Price staleness alerts on Dashboard
+- Google Drive OAuth flow wired into Settings screen
+
 
 ---
 
