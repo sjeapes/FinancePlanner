@@ -33,3 +33,4 @@ pytest-asyncio>=0.23
 # ── Development / notebooks ───────────────────────────────────
 # jupyter
 # notebook
+pdfplumber>=0.11.0    # Phase 10: PDF statement text extraction
