@@ -7,7 +7,6 @@ import {
   Calendar,
   Scale,
   Globe,
-  TrendingUp,
   GitBranch,
   CheckCircle,
   Settings,
