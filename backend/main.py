@@ -473,6 +473,22 @@ def _register_routers(app: FastAPI) -> None:
         except ImportError as exc:
             logger.warning("tax_optimiser router not available: %s", exc)
 
+        # ── Phase 9: Historical backtest ──────────────────────────────────────
+        try:
+            from backend.api.routes import backtest
+            app.include_router(backtest.router, prefix="/api", tags=["backtest"])
+            logger.debug("_register_routers: backtest router registered")
+        except ImportError as exc:
+            logger.warning("backtest router not available: %s", exc)
+
+        # ── Phase 12 (partial): Planning coach ───────────────────────────────
+        try:
+            from backend.api.routes import planning_coach
+            app.include_router(planning_coach.router, prefix="/api", tags=["coach"])
+            logger.debug("_register_routers: planning_coach router registered")
+        except ImportError as exc:
+            logger.warning("planning_coach router not available: %s", exc)
+
         logger.debug("_register_routers: all routers registered")
     except Exception as exc:
         logger.error("_register_routers: failed to register routers: %s", exc, exc_info=True)
