@@ -11,9 +11,6 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
-} from 'recharts'
 import { useSimulationStore } from '../store/simulationStore'
 import { useConfigStore } from '../store/configStore'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -28,9 +25,6 @@ function fmt(v: number): string {
   if (v >= 1_000)     return `£${(v / 1_000).toFixed(0)}k`
   return `£${v.toLocaleString()}`
 }
-
-const tipStyle = { background: '#0f1b2d', border: '1px solid #30363d',
-                   borderRadius: 8, color: '#e8edf2', fontSize: 11 }
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
 
