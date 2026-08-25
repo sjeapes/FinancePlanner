@@ -528,13 +528,24 @@ interface ParsedResult {
 }
 
 const ACCOUNT_TYPE_OPTIONS = [
-  { value: 'general',      label: 'Current / Bank Account' },
-  { value: 'savings',      label: 'Savings Account' },
-  { value: 'cash_ISA',     label: 'Cash ISA' },
-  { value: 'ISA',          label: 'Stocks & Shares ISA' },
-  { value: 'GIA',          label: 'General Investment Account (GIA)' },
-  { value: 'SIPP',         label: 'SIPP (Self-Invested Pension)' },
-  { value: 'workplace_DC', label: 'Workplace Pension (DC)' },
+  // UK account types
+  { value: 'general',              label: '🇬🇧 Current / Bank Account' },
+  { value: 'savings',              label: '🇬🇧 Savings Account' },
+  { value: 'cash_ISA',             label: '🇬🇧 Cash ISA' },
+  { value: 'ISA',                  label: '🇬🇧 Stocks & Shares ISA' },
+  { value: 'GIA',                  label: '🇬🇧 General Investment Account (GIA)' },
+  { value: 'SIPP',                 label: '🇬🇧 SIPP (Self-Invested Pension)' },
+  { value: 'workplace_DC',         label: '🇬🇧 Workplace Pension (DC)' },
+  // US account types
+  { value: 'k401',                 label: '🇺🇸 401(k)' },
+  { value: 'roth_401k',            label: '🇺🇸 Roth 401(k)' },
+  { value: 'k403b',                label: '🇺🇸 403(b)' },
+  { value: 'roth_ira',             label: '🇺🇸 Roth IRA' },
+  { value: 'ira',                  label: '🇺🇸 Traditional IRA' },
+  { value: 'hsa',                  label: '🇺🇸 HSA (Health Savings Account)' },
+  { value: 'plan_529',             label: '🇺🇸 529 College Savings Plan' },
+  { value: 'money_market',         label: '🇺🇸 Money Market Account' },
+  { value: 'taxable_brokerage',    label: '🇺🇸 Taxable Brokerage Account' },
 ]
 
 function DropZone({ onFile }: { onFile: (f: File) => void }) {
