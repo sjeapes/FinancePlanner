@@ -387,3 +387,133 @@ def store_api_key(body: ApiKeyRequest, request: Request) -> dict:
             status_code=500,
             detail={"error": "Storage error", "detail": str(exc)},
         )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ISIN resolver (OpenFIGI)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ISINResultOut(BaseModel):
+    """@brief ISIN resolution result from OpenFIGI."""
+    model_config = ConfigDict(from_attributes=True)
+    isin: str
+    name: str
+    ticker: str
+    exchange: str
+    security_type: str
+    asset_class: str
+    currency: str
+    error: str = ""
+
+
+@router.get("/market-data/isin/{isin}", response_model=ISINResultOut)
+async def resolve_isin(isin: str) -> ISINResultOut:
+    """
+    @brief Resolve an ISIN to fund metadata via the OpenFIGI API.
+
+    @param isin  ISIN code (e.g. IE00B3RBWM25).
+    @return      ISINResultOut with fund name, ticker, exchange, and asset class.
+    """
+    import httpx
+    url = "https://api.openfigi.com/v3/mapping"
+    payload = [{"idType": "ID_ISIN", "idValue": isin.upper().strip()}]
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(url, json=payload,
+                                  headers={"Content-Type": "application/json"})
+            data = r.json()
+        if data and data[0].get("data"):
+            item = data[0]["data"][0]
+            return ISINResultOut(
+                isin=isin.upper(),
+                name=item.get("name", ""),
+                ticker=item.get("ticker", ""),
+                exchange=item.get("exchCode", ""),
+                security_type=item.get("securityType", ""),
+                asset_class=item.get("marketSector", ""),
+                currency=item.get("currency", ""),
+            )
+        return ISINResultOut(isin=isin, name="", ticker="", exchange="",
+                             security_type="", asset_class="", currency="",
+                             error="ISIN not found in OpenFIGI")
+    except Exception as exc:
+        logger.error("resolve_isin %s: %s", isin, exc)
+        return ISINResultOut(isin=isin, name="", ticker="", exchange="",
+                             security_type="", asset_class="", currency="",
+                             error=str(exc))
+
+
+class StaleHolding(BaseModel):
+    """@brief A holding whose price data is stale."""
+    model_config = ConfigDict(from_attributes=True)
+    account_id: str; account_name: str; holding_name: str
+    isin: str; ticker: str; days_since_update: int; current_price: Optional[float]
+
+
+class PriceStalenessOut(BaseModel):
+    """@brief Price staleness report for a scenario."""
+    model_config = ConfigDict(from_attributes=True)
+    stale_holdings: list[StaleHolding]
+    total_accounts_checked: int; stale_threshold_hours: int
+    has_stale: bool
+
+
+@router.get("/market-data/staleness", response_model=PriceStalenessOut)
+def get_price_staleness(
+    request: Request,
+    scenario_path: str = Query(default="data/scenarios/base.yaml"),
+    threshold_hours: int = Query(default=24),
+) -> PriceStalenessOut:
+    """
+    @brief Check for holdings with stale price data in the scenario.
+
+    @param scenario_path    Path to the scenario YAML.
+    @param threshold_hours  Hours after which a price is considered stale.
+    @return                 PriceStalenessOut listing stale holdings.
+    """
+    from datetime import datetime, timedelta
+    from backend.persistence.yaml_serialiser import load_yaml
+
+    root = getattr(request.app.state, "project_root", ".")
+    abs_path = (scenario_path if os.path.isabs(scenario_path)
+                else os.path.join(root, scenario_path))
+    if not os.path.exists(abs_path):
+        raise HTTPException(status_code=404, detail=f"Scenario not found: {scenario_path}")
+    try:
+        raw = load_yaml(abs_path)
+        sc  = raw.get("scenario", raw)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    stale: list[StaleHolding] = []
+    cutoff = datetime.utcnow() - timedelta(hours=threshold_hours)
+    inv_accounts = sc.get("investment_accounts", [])
+    total = 0
+
+    for acc in inv_accounts:
+        for h in acc.get("holdings", []):
+            total += 1
+            last_upd = h.get("last_price_update") or h.get("price_date")
+            days_stale = 999
+            if last_upd:
+                try:
+                    upd_dt = datetime.fromisoformat(str(last_upd)[:10])
+                    days_stale = (datetime.utcnow() - upd_dt).days
+                except (ValueError, TypeError):
+                    pass
+            if days_stale > threshold_hours // 24:
+                stale.append(StaleHolding(
+                    account_id=acc.get("id", ""),
+                    account_name=acc.get("name", ""),
+                    holding_name=h.get("name", ""),
+                    isin=h.get("isin", ""),
+                    ticker=h.get("ticker", h.get("symbol", "")),
+                    days_since_update=days_stale,
+                    current_price=h.get("price_per_unit"),
+                ))
+
+    return PriceStalenessOut(
+        stale_holdings=stale,
+        total_accounts_checked=total,
+        stale_threshold_hours=threshold_hours,
+        has_stale=len(stale) > 0,
+    )
