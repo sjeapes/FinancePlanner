@@ -169,6 +169,46 @@ def list_checkpoints(request: Request) -> list[CheckpointListItem]:
         raise HTTPException(status_code=500, detail={"error": "List error", "detail": str(exc)})
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 11: HA checkpoint milestone notifications
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fire_ha_notification(title: str, message: str) -> None:
+    """
+    @brief Fire a persistent notification in Home Assistant.
+    Requires homeassistant_api: true in config.json.
+    Uses SUPERVISOR_TOKEN env var injected by HA Supervisor.
+    """
+    import os as _os
+    import urllib.request as _ur
+    import json as _js
+    token = _os.environ.get("SUPERVISOR_TOKEN", "")
+    if not token:
+        return
+    try:
+        url  = "http://supervisor/core/api/services/persistent_notification/create"
+        body = _js.dumps({"notification_id": "lifeledger_milestone",
+                           "title": title, "message": message}).encode()
+        req = _ur.Request(url, data=body, method="POST",
+                          headers={"Authorization": f"Bearer {token}",
+                                   "Content-Type": "application/json"})
+        with _ur.urlopen(req, timeout=5): pass
+    except Exception as exc:
+        logger.warning("_fire_ha_notification failed: %s", exc)
+
+
+_MILESTONES = [50_000, 100_000, 250_000, 500_000, 750_000, 1_000_000,
+               1_500_000, 2_000_000, 5_000_000]
+
+
+def _milestone_crossed(prev: float, new: float) -> Optional[float]:
+    """@brief Return the first milestone crossed upward, or None."""
+    for m in _MILESTONES:
+        if prev < m <= new:
+            return m
+    return None
+
 @router.post("/checkpoints", response_model=CheckpointModel, status_code=201)
 def create_checkpoint(body: CheckpointModel, request: Request) -> CheckpointModel:
     """
@@ -207,6 +247,22 @@ def create_checkpoint(body: CheckpointModel, request: Request) -> CheckpointMode
                 detail={"error": "Write error", "detail": "Could not save checkpoint"},
             )
         logger.info("create_checkpoint: saved %s", path)
+        # Fire HA notification if a net worth milestone was crossed
+        try:
+            existing = list_checkpoints(request)
+            prev_nw  = existing[-2].total_net_worth if len(existing) >= 2 else 0.0
+            crossed  = _milestone_crossed(prev_nw, body.total_net_worth)
+            if crossed:
+                _fire_ha_notification(
+                    title="LifeLedger — Milestone reached! 🎉",
+                    message=(
+                        f"Net worth crossed £{crossed:,.0f} on {body.date}. "
+                        f"Current: £{body.total_net_worth:,.0f}. "
+                        "Open LifeLedger for your full projection."
+                    ),
+                )
+        except Exception as _e:
+            logger.warning("milestone notification failed: %s", _e)
         return body
     except HTTPException:
         raise
