@@ -303,132 +303,7 @@ function ScenarioSliders({ scenarioPath }: { scenarioPath: string }) {
   )
 }
 
-// ── Historical backtest ───────────────────────────────────────────────────────
-
-interface BacktestYear { year: number; age: number; portfolio: number; fire_sustained: boolean }
-interface BacktestScenario {
-  scenario_id: string; label: string; colour: string; description: string
-  years: BacktestYear[]; terminal_value: number; survived: boolean
-  min_value: number; min_value_year: number
-}
-interface BacktestData {
-  base_label: string; base_years: BacktestYear[]; base_terminal: number
-  scenarios: BacktestScenario[]; all_survived: boolean
-  worst_scenario_id: string; warnings: string[]
-}
-
-function HistoricalBacktestPanel({ scenarioPath }: { scenarioPath: string }) {
-  const [equityFrac, setEquityFrac] = useState(80)
-  const [enabled, setEnabled] = useState(false)
-
-  const { data, isLoading } = useQuery<BacktestData>({
-    queryKey: ['backtest', scenarioPath, equityFrac],
-    queryFn: () => apiClient.get(`/backtest/run?scenario_path=${encodeURIComponent(scenarioPath)}&equity_fraction=${equityFrac/100}`).then(r => r.data),
-    enabled,
-    staleTime: 120_000,
-  })
-
-  const chartData = data ? data.base_years
-    .filter(y => y.year % 2 === 0)
-    .map(y => {
-      const row: Record<string, any> = { age: y.age, 'Mean returns': Math.round(y.portfolio / 1000) }
-      data.scenarios.forEach(s => {
-        const sy = s.years.find(sy => sy.year === y.year)
-        if (sy) row[s.label.replace(' (', '\n(')] = Math.round(sy.portfolio / 1000)
-      })
-      return row
-    }) : []
-
-  const COLOURS = ['#e05252', '#f97316', '#d4a843', '#0e9aad', '#2dbd7e']
-
-  return (
-    <Panel title="Historical Sequence Backtest" defaultOpen={false} accentColour="#58a6ff">
-      <p style={{ color: '#8fa3b8', fontSize: 12, marginBottom: 14, marginTop: 0 }}>
-        How would your portfolio have fared if retirement started in a historic crash year?
-        Tests sequence-of-returns risk using real historical returns.
-      </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
-        <div>
-          <label style={{ color: '#8fa3b8', fontSize: 11, marginBottom: 4, display: 'block' }}>
-            Equity allocation: {equityFrac}%
-          </label>
-          <input type="range" min={40} max={100} step={5} value={equityFrac}
-                 onChange={e => setEquityFrac(Number(e.target.value))}
-                 style={{ width: 160, accentColor: '#58a6ff', cursor: 'pointer' }} />
-        </div>
-        {!enabled && (
-          <button onClick={() => setEnabled(true)} style={{
-            background: '#58a6ff', color: '#fff', border: 'none', borderRadius: 8,
-            padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}>
-            Run Backtest
-          </button>
-        )}
-        {enabled && !data && !isLoading && (
-          <button onClick={() => setEnabled(false)} style={{
-            background: '#1d2f47', color: '#8fa3b8', border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer',
-          }}>Reset</button>
-        )}
-      </div>
-
-      {isLoading && (
-        <div style={{ color: '#8fa3b8', fontSize: 13 }}>Running historical backtest…</div>
-      )}
-
-      {data && (
-        <>
-          {/* Survival summary */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            {data.scenarios.map(s => (
-              <div key={s.scenario_id} style={{ background: `${s.colour}11`,
-                                                border: `1px solid ${s.colour}44`, borderRadius: 8,
-                                                padding: '8px 12px', minWidth: 140 }}>
-                <div style={{ color: s.colour, fontWeight: 600, fontSize: 12, marginBottom: 2 }}>{s.label}</div>
-                <div style={{ color: '#e8edf2', fontFamily: 'DM Mono, monospace', fontSize: 13 }}>
-                  {s.survived ? fmt(s.terminal_value) : '⚠ Ruin'}
-                </div>
-                <div style={{ color: '#8b949e', fontSize: 10 }}>
-                  {s.survived ? 'terminal wealth' : `at age ${s.min_value_year - (new Date().getFullYear() - 45)}`}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Chart */}
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={chartData}>
-              <XAxis dataKey="age" tick={{ fill: '#8b949e', fontSize: 9 }}
-                     label={{ value: 'Age', position: 'insideBottom', fill: '#8b949e', fontSize: 9 }} />
-              <YAxis tickFormatter={v => `£${v}k`} tick={{ fill: '#8b949e', fontSize: 9 }} />
-              <Tooltip formatter={(v: number, n: string) => [`£${v}k`, n]} contentStyle={tipStyle} />
-              <Legend wrapperStyle={{ fontSize: 10, color: '#8fa3b8' }} />
-              <Line dataKey="Mean returns" stroke="#8fa3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
-              {data.scenarios.map((s, i) => (
-                <Line key={s.scenario_id}
-                      dataKey={s.label.replace(' (', '\n(')}
-                      stroke={s.colour} strokeWidth={2} dot={false} />
-              ))}
-              <ReferenceLine y={0} stroke="#e05252" strokeDasharray="3 2" />
-            </LineChart>
-          </ResponsiveContainer>
-
-          {data.warnings.map((w, i) => (
-            <div key={i} style={{ color: '#e05252', fontSize: 12, marginTop: 8 }}>⚠ {w}</div>
-          ))}
-
-          {!data.all_survived && (
-            <div style={{ background: '#e0525211', border: '1px solid #e0525244', borderRadius: 8,
-                          padding: '10px 14px', marginTop: 10, color: '#e05252', fontSize: 12 }}>
-              ⚠ One or more historical scenarios result in portfolio exhaustion during retirement.
-              Consider increasing equity allocation, reducing spending, or extending working years.
-            </div>
-          )}
-        </>
-      )}
-    </Panel>
-  )
-}
+// (Historical backtest moved to Timeline screen — Chart/Table/Backtest tabs)
 
 // ── Sankey panel ──────────────────────────────────────────────────────────────
 
@@ -575,8 +450,7 @@ export function Dashboard() {
       {/* Scenario what-if sliders */}
       <ScenarioSliders scenarioPath={activeScenarioPath} />
 
-      {/* Historical backtest */}
-      <HistoricalBacktestPanel scenarioPath={activeScenarioPath} />
+      {/* Historical backtest: see Timeline → Backtest tab */}
 
       {/* Cash flow Sankey */}
       <SankeyPanel scenarioPath={activeScenarioPath} />
