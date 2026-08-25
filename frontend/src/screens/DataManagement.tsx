@@ -859,6 +859,18 @@ function ImportTab({ people, accounts }: { people: any[]; accounts: any }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
+
+// ── ISIN Enrichment helper ──────────────────────────────────────────────────
+async function enrichISIN(isin: string): Promise<{name:string;ticker:string;exchange:string}|null> {
+  if (!isin || isin.length < 10) return null
+  try {
+    const r = await apiClient.get(`/market-data/isin/${isin}`)
+    const d = r.data
+    if (d.error || !d.name) return null
+    return { name: d.name, ticker: d.ticker, exchange: d.exchange }
+  } catch { return null }
+}
+
 export function DataManagement() {
   const [activeTab, setActiveTab] = useState<TabKey>('people')
   const queryClient = useQueryClient()
