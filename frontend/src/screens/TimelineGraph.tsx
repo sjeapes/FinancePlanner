@@ -94,7 +94,7 @@ function BacktestView({ scenarioPath }: { scenarioPath: string }) {
   // Annual return series chart (year 1-15 only — the crash window)
   const returnData = data?.scenarios[0]?.years
     .slice(0, 20)
-    .map((y, i) => {
+    .map((_y, i) => {
       const row: Record<string, any> = { year: `Y${i + 1}` }
       for (const s of data!.scenarios) {
         const sy = s.years[i]
