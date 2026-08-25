@@ -1283,3 +1283,84 @@ generational:
 ```
 
 *Last updated: 2026-08-24. Maintained by Claude on behalf of the project owner.*
+
+---
+
+## 13. Phases 7–10 Implementation Summary (2026-08-24)
+
+### 13.1 Completed Since Phase 6
+
+#### Phase 7 — Generational Engine ✅
+- `backend/engine/generational_engine.py` — salary interpolation, UK/US tax, offspring projection, IHT/US estate tax, `GenerationalEngine` orchestrator
+- `backend/engine/country_comparison_engine.py` — UK vs US parallel projections, break-even analysis, estate delta
+- `config/generational/generational_config.yaml` — 10 career paths, UK/US macro, university, FX, estate config
+- `backend/api/routes/generational.py` — 7 endpoints: offspring, career-paths, compare, university, family-timeline, estate-handoff, report
+- `frontend/src/screens/GenerationalPlanning.tsx` — 5 tabs: Country Comparison, Family Timeline, Career Paths, Estate & IHT, Sensitivity
+- `notebooks/09_phase7_validation.ipynb` — 7 assertion cells + 3-panel dashboard chart
+- `tests/test_phase7_generational.py` — 35+ regression tests including CLAUDE.md §12.5 anchors
+
+#### Phase 9 (Sankey) ✅
+- `backend/api/routes/sankey.py` — `GET /api/sankey-data` reads scenario YAML directly (no simulation run needed), computes income/tax/contribution/expense flows
+- `frontend/src/components/charts/SankeyChart.tsx` — pure SVG, no external deps, bezier bands, hover tooltips
+- `frontend/src/screens/Dashboard.tsx` — Sankey panel added below Timeline Chart, year selector (current / +5 / +10), collapsible
+
+#### Phase 10 (Import, partial) ✅
+- `backend/engine/statement_parser.py` — OFX/QFX (UK + US banks), CSV bank (generic UK/US), CSV broker (HL/Vanguard/AJ Bell/Fidelity/Schwab/Vanguard US/E*TRADE), PDF (pdfplumber). Detects institution, jurisdiction (uk/us/unknown), currency (GBP/USD), account type (UK: ISA/SIPP/GIA/savings; US: 401k/Roth IRA/IRA/HSA/529/taxable brokerage)
+- `backend/api/routes/import_data.py` — `POST /api/import/parse` + `POST /api/import/apply`
+- `frontend/src/screens/DataManagement.tsx` — Import tab: file drop-zone, parsed preview, account type selector (UK + US types), owner selector, create/update toggle, apply button
+- `backend/engine/statement_parser.py` v0.2.0: added 20 US institutions, US account types, `_detect_currency()`, `_guess_institution()` returns jurisdiction tuple, `ParsedStatement.jurisdiction` field
+
+#### Frontend additions ✅
+- `frontend/src/screens/EstatePlanner.tsx` — full build: IHT waterfall, gift tracker, survivor simulation tabs, portfolio rebalancing
+- `frontend/src/hooks/useMobileView.ts` + `frontend/src/components/layout/MobileNav.tsx` — mobile detection + bottom tab bar
+- `frontend/src/App.tsx` — dual layout (desktop sidebar / mobile bottom nav)
+- `frontend/src/components/layout/TopBar.tsx` — mobile/desktop toggle button
+- People Add/Remove in DataManagement.tsx PeopleTab
+- `frontend/src/screens/GenerationalPlanning.tsx` — added to App.tsx, Sidebar (Globe icon), MobileNav
+
+### 13.2 Docker Layer Cache Pattern (critical for HA)
+
+```dockerfile
+# Add before every RUN curl step:
+ARG APP_VERSION=1.1.1
+RUN echo "Downloading LifeLedger ${APP_VERSION}" \
+    && mkdir -p /src \
+    && curl -fsSLk "${REPO_URL}" | tar -xz --strip-components=1 -C /src
+```
+
+When `APP_VERSION` changes, Docker invalidates the cache for the curl step and all downstream steps. Always bump BOTH `APP_VERSION` in `lifeledger/Dockerfile` AND `version` in `lifeledger/config.json` together. Always run `docker builder prune -af` on the HA host before reinstalling.
+
+### 13.3 Statement Parser Jurisdiction Logic
+
+```python
+_guess_institution(text) -> (institution_name: str, jurisdiction: str)
+_detect_currency(content, filename, ofx_curdef="") -> "GBP" | "USD" | "EUR"
+_guess_account_type(text, jurisdiction) -> account_type_string
+```
+
+US institutions are checked first in `_guess_institution`. Currency defaults to GBP unless USD signals ($ prefix, `401k`, `roth ira`, `schwab`, `fidelity`, `.com`) appear without GBP/sterling signals.
+
+### 13.4 YAML Type Mapping (import_data.py)
+
+| LifeLedger type | YAML section | Notes |
+|---|---|---|
+| `savings`, `cash_ISA`, `general`, `hsa`, `plan_529`, `money_market` | `savings_accounts` | |
+| `ISA`, `GIA`, `roth_ira`, `taxable_brokerage` | `investment_accounts` | |
+| `SIPP`, `workplace_DC`, `k401`, `roth_401k`, `k403b`, `ira` | `pension_funds` | |
+
+### 13.5 Housekeeping completed 2026-08-24
+- `tests/test_phase7_generational.py` pushed (35+ tests, 8 test classes)
+- `backend/api/routes/import_data.py` `ParsedStatementOut` updated with `jurisdiction` field
+- `frontend/src/screens/DataManagement.tsx` Import tab updated with UK + US account type options
+- `requirements.txt` updated with `pdfplumber>=0.11.0`
+- `ROADMAP.md` updated (Open Banking API replaced with manual bank record ingest)
+- CLAUDE.md §12.5 updated with confirmed Phase 7 regression anchors
+
+### 13.6 Remaining work (see ROADMAP.md for detail)
+- HA add-on install confirmation (1.1.1) — needs `docker builder prune -af` then reinstall
+- Real data entry via Data Management UI (base.yaml has dummy Alex/Sam Example data)
+- Phase 8: Tax Optimiser (band-filler, UFPLS, CGT harvesting)
+- Phase 9: Historical sequence backtest, milestone goal cards, interactive sliders
+- Phase 10: Investment opportunity analyser (upload bank statement, compare vs popular funds)
+- Phases 11–12: Collaboration, intelligence/planning coach
+
