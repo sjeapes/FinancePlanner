@@ -1,15 +1,15 @@
 /**
  * Dashboard.tsx
- * Enhanced dashboard with 5 panels:
- *   1. KPI strip
+ * Enhanced dashboard with panels:
+ *   1. KPI strip + Milestone cards
  *   2. Net Worth Timeline
  *   3. Planning Coach alerts
- *   4. Milestone / goal cards + Scenario sliders
- *   5. Historical sequence backtest
- *   6. Cash Flow Sankey
+ *   4. Scenario what-if sliders
+ *   5. Cash Flow Sankey
+ *   (Historical Backtest → Timeline screen → Backtest tab)
  */
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
