@@ -146,17 +146,28 @@ def _base_path(request: Request, override: Optional[str] = None) -> str:
 
 
 _TYPE_TO_YAML_KEY = {
-    "savings":     "savings_accounts",
-    "cash_ISA":    "savings_accounts",
-    "ISA":         "investment_accounts",
-    "SIPP":        "pension_funds",
-    "workplace_DC":"pension_funds",
-    "GIA":         "investment_accounts",
-    "general":     "savings_accounts",
+    # UK account types
+    "savings":              "savings_accounts",
+    "cash_ISA":             "savings_accounts",
+    "ISA":                  "investment_accounts",
+    "SIPP":                 "pension_funds",
+    "workplace_DC":         "pension_funds",
+    "GIA":                  "investment_accounts",
+    "general":              "savings_accounts",
+    # US account types
+    "k401":                 "pension_funds",
+    "roth_401k":            "pension_funds",
+    "k403b":                "pension_funds",
+    "roth_ira":             "investment_accounts",
+    "ira":                  "pension_funds",
+    "hsa":                  "savings_accounts",
+    "plan_529":             "savings_accounts",
+    "money_market":         "savings_accounts",
+    "taxable_brokerage":    "investment_accounts",
 }
 
-_PENSION_TYPES = {"SIPP", "workplace_DC"}
-_INVESTMENT_TYPES = {"ISA", "GIA"}
+_PENSION_TYPES    = {"SIPP", "workplace_DC", "k401", "roth_401k", "k403b", "ira"}
+_INVESTMENT_TYPES = {"ISA", "GIA", "roth_ira", "taxable_brokerage"}
 
 
 def _build_new_account(req: ApplyStatementRequest) -> dict:
