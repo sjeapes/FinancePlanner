@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Legend, ReferenceLine, Cell,
+  ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts'
 import { apiClient } from '../api/client'
 import { useConfigStore } from '../store/configStore'
@@ -86,7 +86,7 @@ const fmt = (v: number, currency = 'GBP') => {
 }
 
 const TEAL = '#0e9aad'; const GOLD = '#d4a843'; const GREEN = '#2dbd7e'
-const RED  = '#e05252'; const PURP = '#a78bfa'; const ORNG = '#f97316'
+const RED  = '#e05252'; const PURP = '#a78bfa'
 
 function Card({ title, children, accent = TEAL }: {
   title?: string; children: React.ReactNode; accent?: string
