@@ -36,6 +36,7 @@ type TabKey =
   | 'property'
   | 'expenses'
   | 'life_events'
+  | 'import'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'people', label: 'People' },
@@ -46,6 +47,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'property', label: 'Property & Mortgage' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'life_events', label: 'Life Events' },
+  { key: 'import', label: '↑ Import' },
 ]
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -162,9 +164,12 @@ interface TabSectionProps {
 
 function PeopleTab({ people }: TabSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [toastError, setToastError] = useState(false)
+  const add    = useAddAccount('person')
   const update = useUpdateAccount('person')
+  const del    = useDeleteAccount('person')
 
   function showToast(msg: string, err = false) {
     setToast(msg)
@@ -172,14 +177,26 @@ function PeopleTab({ people }: TabSectionProps) {
     setTimeout(() => setToast(null), 2500)
   }
 
+  function handleAdd(data: any) {
+    add.mutate(data, {
+      onSuccess: () => { setAdding(false); showToast('Person added') },
+      onError:   () => showToast('Add failed', true),
+    })
+  }
+
   function handleSave(data: any) {
-    update.mutate(
-      { id: data.id, data },
-      {
-        onSuccess: () => { setEditingId(null); showToast('Saved') },
-        onError: () => showToast('Save failed', true),
-      }
-    )
+    update.mutate({ id: data.id, data }, {
+      onSuccess: () => { setEditingId(null); showToast('Saved') },
+      onError:   () => showToast('Save failed', true),
+    })
+  }
+
+  function handleDelete(id: string, name: string) {
+    if (!window.confirm(`Remove ${name} from scenario?`)) return
+    del.mutate(id, {
+      onSuccess: () => showToast('Removed'),
+      onError:   () => showToast('Delete failed', true),
+    })
   }
 
   return (
@@ -188,15 +205,21 @@ function PeopleTab({ people }: TabSectionProps) {
         <span style={{ color: '#e8edf2', fontSize: 15, fontWeight: 600 }}>People</span>
         {toast && <Toast message={toast} isError={toastError} />}
       </div>
+
+      {adding && (
+        <div style={{ ...cardStyle, borderColor: 'rgba(14,154,173,0.3)', marginBottom: 16 }}>
+          <PersonForm onSave={handleAdd} onCancel={() => setAdding(false)} />
+        </div>
+      )}
+      {!adding && (
+        <button style={btnAdd} onClick={() => setAdding(true)}>+ Add Person</button>
+      )}
+
       {people.map((person: any) => (
         <div key={person.id}>
           {editingId === person.id ? (
             <div style={{ ...cardStyle, borderColor: 'rgba(14,154,173,0.3)' }}>
-              <PersonForm
-                person={person}
-                onSave={handleSave}
-                onCancel={() => setEditingId(null)}
-              />
+              <PersonForm person={person} onSave={handleSave} onCancel={() => setEditingId(null)} />
             </div>
           ) : (
             <div style={cardStyle}>
@@ -208,25 +231,28 @@ function PeopleTab({ people }: TabSectionProps) {
                     <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
                     <span>Retires: {person.retirement_age}</span>
                     <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
-                    <span>Life expectancy: {person.life_expectancy}</span>
+                    <span>LE: {person.life_expectancy}</span>
                     {person.state_pension && (
                       <>
                         <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
                         <span style={monoStyle}>
-                          State pension: {fmtMoney(person.state_pension.weekly_amount * 52)}/yr
+                          SP: {fmtMoney(person.state_pension.weekly_amount * 52)}/yr
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <button style={btnSmall} onClick={() => setEditingId(person.id)}>Edit</button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button style={btnSmall} onClick={() => { setAdding(false); setEditingId(person.id) }}>Edit</button>
+                  <button style={btnDelete} onClick={() => handleDelete(person.id, person.name)}>×</button>
+                </div>
               </div>
             </div>
           )}
         </div>
       ))}
-      {people.length === 0 && (
-        <div style={{ color: '#8fa3b8', fontSize: 13 }}>No people found in scenario.</div>
+      {people.length === 0 && !adding && (
+        <div style={{ color: '#8fa3b8', fontSize: 13 }}>No people in scenario. Click "+ Add Person" to start.</div>
       )}
     </div>
   )
@@ -486,6 +512,319 @@ function PropertyMortgageTab({ properties, mortgages }: { properties: any[]; mor
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Import Tab ──────────────────────────────────────────────────────────────
+
+interface ParsedResult {
+  format: string; institution: string; account_name: string
+  suggested_type: string; currency: string; current_balance: number
+  statement_date: string
+  historical: { date_str: string; balance: number }[]
+  holdings: { name: string; isin: string; units: number; price: number; value: number }[]
+  confidence: number; warnings: string[]
+}
+
+const ACCOUNT_TYPE_OPTIONS = [
+  { value: 'general',      label: 'Current / Bank Account' },
+  { value: 'savings',      label: 'Savings Account' },
+  { value: 'cash_ISA',     label: 'Cash ISA' },
+  { value: 'ISA',          label: 'Stocks & Shares ISA' },
+  { value: 'GIA',          label: 'General Investment Account (GIA)' },
+  { value: 'SIPP',         label: 'SIPP (Self-Invested Pension)' },
+  { value: 'workplace_DC', label: 'Workplace Pension (DC)' },
+]
+
+function DropZone({ onFile }: { onFile: (f: File) => void }) {
+  const [drag, setDrag] = useState(false)
+  return (
+    <label
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        border: `2px dashed ${drag ? '#0e9aad' : 'rgba(255,255,255,0.15)'}`,
+        borderRadius: 12, padding: '32px 24px', cursor: 'pointer', marginBottom: 20,
+        background: drag ? 'rgba(14,154,173,0.06)' : 'transparent',
+        transition: 'all 0.15s',
+      }}
+      onDragOver={e => { e.preventDefault(); setDrag(true) }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) onFile(f) }}
+    >
+      <input type="file" accept=".csv,.ofx,.qfx,.pdf" style={{ display: 'none' }}
+             onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
+      <span style={{ fontSize: 32, marginBottom: 10 }}>📄</span>
+      <span style={{ color: '#e8edf2', fontWeight: 600, fontSize: 14 }}>Drop a statement here</span>
+      <span style={{ color: '#8fa3b8', fontSize: 12, marginTop: 4 }}>CSV, OFX, QFX or PDF · max 10 MB</span>
+    </label>
+  )
+}
+
+function ConfidenceBadge({ score }: { score: number }) {
+  const colour = score >= 0.8 ? '#2dbd7e' : score >= 0.5 ? '#f0a500' : '#e05252'
+  const label  = score >= 0.8 ? 'High confidence' : score >= 0.5 ? 'Review data' : 'Low confidence'
+  return (
+    <span style={{ background: colour + '22', color: colour, border: `1px solid ${colour}44`,
+                   borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 600 }}>{label}</span>
+  )
+}
+
+function ImportTab({ people, accounts }: { people: any[]; accounts: any }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [parsed, setParsed] = useState<ParsedResult | null>(null)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const [applying, setApplying] = useState(false)
+  const [applyResult, setApplyResult] = useState<string | null>(null)
+  const [applyError, setApplyError] = useState<string | null>(null)
+
+  // User choices
+  const [action, setAction] = useState<'create'|'update'>('create')
+  const [acctType, setAcctType] = useState('savings')
+  const [acctName, setAcctName] = useState('')
+  const [acctId, setAcctId] = useState('')
+  const [ownerId, setOwnerId] = useState(people[0]?.id ?? '')
+  const [importHistory, setImportHistory] = useState(true)
+  const [importHoldings, setImportHoldings] = useState(true)
+
+  // All existing accounts for the "update" dropdown
+  const allAccounts: any[] = [
+    ...(accounts?.savings ?? []),
+    ...(accounts?.investment ?? []),
+    ...(accounts?.pension ?? []),
+    ...(accounts?.property ?? []),
+  ]
+
+  async function handleFile(f: File) {
+    setFile(f); setParsed(null); setParseError(null); setApplyResult(null); setApplyError(null)
+    setLoading(true)
+    const form = new FormData()
+    form.append('file', f)
+    try {
+      // Use relative URL — same pattern as apiClient
+      const base = window.location.pathname.replace(/\/+$/, '')
+      const res  = await fetch(`${window.location.protocol}//${window.location.host}${base}/api/import/parse`, {
+        method: 'POST', body: form,
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const data: ParsedResult = await res.json()
+      setParsed(data)
+      setAcctType(data.suggested_type)
+      setAcctName(data.account_name)
+    } catch (e: any) {
+      setParseError(e.message ?? 'Parse failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleApply() {
+    if (!parsed) return
+    setApplying(true); setApplyResult(null); setApplyError(null)
+    try {
+      const base = window.location.pathname.replace(/\/+$/, '')
+      const res  = await fetch(`${window.location.protocol}//${window.location.host}${base}/api/import/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parsed, action, account_type: acctType, account_id: acctId,
+          account_name: acctName, owner_id: ownerId,
+          import_holdings: importHoldings, import_history: importHistory,
+        }),
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const data = await res.json()
+      setApplyResult(data.message)
+    } catch (e: any) {
+      setApplyError(e.message ?? 'Apply failed')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const inputS = { ...inputStyle } as any
+
+  return (
+    <div style={{ maxWidth: 700 }}>
+      <div style={{ marginBottom: 20 }}>
+        <span style={{ color: '#e8edf2', fontSize: 15, fontWeight: 600 }}>Import Statement</span>
+        <p style={{ color: '#8fa3b8', fontSize: 12, marginTop: 4, marginBottom: 0 }}>
+          Upload a bank or broker statement to add or update an account automatically.
+          Supports CSV, OFX (most UK banks), and PDF.
+        </p>
+      </div>
+
+      <DropZone onFile={handleFile} />
+
+      {loading && (
+        <div style={{ color: '#8fa3b8', padding: 16, textAlign: 'center' }}>
+          Parsing {file?.name}…
+        </div>
+      )}
+
+      {parseError && (
+        <div style={{ color: '#e05252', background: '#e0525211', borderRadius: 8,
+                      padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
+          ⚠ {parseError}
+        </div>
+      )}
+
+      {parsed && (
+        <>
+          {/* Preview card */}
+          <div style={{ ...cardStyle, borderColor: 'rgba(14,154,173,0.3)', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div>
+                <div style={{ color: '#8b949e', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                  {parsed.format.toUpperCase()} · {parsed.institution || 'Unknown institution'}
+                </div>
+                <div style={{ color: '#e8edf2', fontWeight: 600, fontSize: 15 }}>{parsed.account_name}</div>
+              </div>
+              <ConfidenceBadge score={parsed.confidence} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ color: '#8b949e', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Balance</div>
+                <div style={{ color: '#e8edf2', fontSize: 18, fontWeight: 700, fontFamily: 'DM Mono, monospace' }}>
+                  £{parsed.current_balance.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#8b949e', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Statement date</div>
+                <div style={{ color: '#e8edf2', fontFamily: 'DM Mono, monospace' }}>{parsed.statement_date}</div>
+              </div>
+              <div>
+                <div style={{ color: '#8b949e', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data points</div>
+                <div style={{ color: '#e8edf2', fontFamily: 'DM Mono, monospace' }}>
+                  {parsed.historical.length} months{parsed.holdings.length > 0 ? ` · ${parsed.holdings.length} holdings` : ''}
+                </div>
+              </div>
+            </div>
+
+            {parsed.holdings.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={subHeadStyle}>Holdings detected</div>
+                {parsed.holdings.slice(0, 5).map((h, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0',
+                                        borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+                    <span style={{ color: '#e8edf2' }}>{h.name}</span>
+                    <span style={{ color: '#8fa3b8', fontFamily: 'DM Mono, monospace' }}>
+                      {h.units.toFixed(2)} units · £{h.value.toLocaleString('en-GB')}
+                    </span>
+                  </div>
+                ))}
+                {parsed.holdings.length > 5 && (
+                  <div style={{ color: '#8b949e', fontSize: 11, marginTop: 4 }}>
+                    +{parsed.holdings.length - 5} more holdings
+                  </div>
+                )}
+              </div>
+            )}
+
+            {parsed.warnings.length > 0 && parsed.warnings.map((w, i) => (
+              <div key={i} style={{ color: '#f0a500', fontSize: 11, marginTop: 6 }}>⚠ {w}</div>
+            ))}
+          </div>
+
+          {/* User choices */}
+          <div style={{ ...cardStyle, marginBottom: 20 }}>
+            <div style={subHeadStyle}>Account settings</div>
+
+            {/* Action toggle */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ ...labelStyle, display: 'block', marginBottom: 6 }}>Action</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(['create', 'update'] as const).map(a => (
+                  <button key={a} onClick={() => setAction(a)} style={{
+                    padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12,
+                    background: action === a ? '#0e9aad' : '#1d2f47',
+                    color: action === a ? '#fff' : '#8fa3b8', fontWeight: action === a ? 600 : 400,
+                  }}>{a === 'create' ? 'Create new account' : 'Update existing account'}</button>
+                ))}
+              </div>
+            </div>
+
+            {action === 'update' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ ...labelStyle, display: 'block', marginBottom: 4 }}>Existing account</label>
+                <select value={acctId} onChange={e => setAcctId(e.target.value)} style={inputS}>
+                  <option value="">— select account —</option>
+                  {allAccounts.map((a: any) => (
+                    <option key={a.id} value={a.id}>{a.name} (£{a.current_value?.toLocaleString('en-GB') ?? '?'})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={{ ...labelStyle, display: 'block', marginBottom: 4 }}>Account name</label>
+                <input value={acctName} onChange={e => setAcctName(e.target.value)} style={inputS} />
+              </div>
+              <div>
+                <label style={{ ...labelStyle, display: 'block', marginBottom: 4 }}>Account type</label>
+                <select value={acctType} onChange={e => setAcctType(e.target.value)} style={inputS}>
+                  {ACCOUNT_TYPE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ ...labelStyle, display: 'block', marginBottom: 4 }}>Owner</label>
+                <select value={ownerId} onChange={e => setOwnerId(e.target.value)} style={inputS}>
+                  {people.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Options */}
+            <div style={{ display: 'flex', gap: 16 }}>
+              {parsed.historical.length > 0 && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: '#8fa3b8' }}>
+                  <input type="checkbox" checked={importHistory} onChange={e => setImportHistory(e.target.checked)} />
+                  Import {parsed.historical.length} historical balance points
+                </label>
+              )}
+              {parsed.holdings.length > 0 && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: '#8fa3b8' }}>
+                  <input type="checkbox" checked={importHoldings} onChange={e => setImportHoldings(e.target.checked)} />
+                  Import {parsed.holdings.length} holdings
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Apply button */}
+          <button
+            onClick={handleApply}
+            disabled={applying || (action === 'update' && !acctId)}
+            style={{
+              background: '#0e9aad', color: '#fff', border: 'none', borderRadius: 8,
+              padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: applying ? 'not-allowed' : 'pointer',
+              opacity: applying || (action === 'update' && !acctId) ? 0.6 : 1,
+            }}
+          >
+            {applying ? 'Applying…' : action === 'create' ? 'Create account from statement' : 'Update account'}
+          </button>
+
+          {applyResult && (
+            <div style={{ color: '#2dbd7e', background: '#2dbd7e11', borderRadius: 8,
+                          padding: '10px 14px', marginTop: 12, fontSize: 13, border: '1px solid #2dbd7e44' }}>
+              ✓ {applyResult}
+            </div>
+          )}
+          {applyError && (
+            <div style={{ color: '#e05252', background: '#e0525211', borderRadius: 8,
+                          padding: '10px 14px', marginTop: 12, fontSize: 13, border: '1px solid #e0525244' }}>
+              ✗ {applyError}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -778,6 +1117,10 @@ export function DataManagement() {
               <LifeEventForm event={item ?? undefined} onSave={onSave} onCancel={onCancel} />
             )}
           />
+        )}
+
+        {activeTab === 'import' && (
+          <ImportTab people={people} accounts={d} />
         )}
       </div>
     </div>
