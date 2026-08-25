@@ -65,6 +65,7 @@ class ParsedStatementOut(BaseModel):
 
     @param format            Detected format: 'ofx', 'csv_bank', 'csv_broker', 'pdf', 'unknown'.
     @param institution       Guessed institution name.
+    @param jurisdiction      'uk' | 'us' | 'unknown'.
     @param account_name      Detected or suggested account name.
     @param suggested_type    Suggested LifeLedger account type.
     @param currency          Currency code.
@@ -79,6 +80,7 @@ class ParsedStatementOut(BaseModel):
 
     format: str
     institution: str
+    jurisdiction: str = "unknown"
     account_name: str
     suggested_type: str
     currency: str
