@@ -9,6 +9,7 @@ import { PortfolioMixScreen } from './screens/PortfolioMixScreen'
 import { RetirementPlanner } from './screens/RetirementPlanner'
 import { EstatePlanner } from './screens/EstatePlanner'
 import { GenerationalPlanning } from './screens/GenerationalPlanning'
+import { TaxOptimiser } from './screens/TaxOptimiser'
 import { ScenariosScreen } from './screens/ScenariosScreen'
 import { CheckpointsScreen } from './screens/CheckpointsScreen'
 import { Settings } from './screens/Settings'
@@ -26,6 +27,7 @@ type Screen =
   | 'retirement'
   | 'estate'
   | 'generational'
+  | 'tax'
   | 'scenarios'
   | 'checkpoints'
   | 'settings'
@@ -38,6 +40,7 @@ const SCREEN_COMPONENTS: Record<Screen, ComponentType> = {
   retirement:  RetirementPlanner,
   estate:      EstatePlanner,
   generational: GenerationalPlanning,
+  tax:           TaxOptimiser,
   scenarios:   ScenariosScreen,
   checkpoints: CheckpointsScreen,
   settings:    Settings,
