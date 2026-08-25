@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { useSimulationStore } from '../store/simulationStore'
+import { useConfigStore } from '../store/configStore'
 import { useState, useCallback } from 'react'
 import { GitBranch, Plus, X, Check, TrendingUp } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
