@@ -457,6 +457,14 @@ def _register_routers(app: FastAPI) -> None:
         except ImportError as exc:
             logger.warning("import_data router not available: %s", exc)
 
+        # ── Phase 9: Sankey / cash-flow data ─────────────────────────────────
+        try:
+            from backend.api.routes import sankey
+            app.include_router(sankey.router, prefix="/api", tags=["sankey"])
+            logger.debug("_register_routers: sankey router registered")
+        except ImportError as exc:
+            logger.warning("sankey router not available: %s", exc)
+
         logger.debug("_register_routers: all routers registered")
     except Exception as exc:
         logger.error("_register_routers: failed to register routers: %s", exc, exc_info=True)
