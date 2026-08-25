@@ -1,6 +1,6 @@
 {
   "name": "LifeLedger",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "slug": "lifeledger",
   "description": "Self-hosted personal finance and retirement planning — net worth projection, FIRE analysis, pension modelling, Monte Carlo simulation, estate planning, and PDF reports.",
   "url": "https://github.com/sjeapes/FinancePlanner",
