@@ -52,6 +52,23 @@ const TABS: { key: TabKey; label: string }[] = [
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 
+const labelStyle: CSSProperties = {
+  color: '#8fa3b8',
+  fontSize: 11,
+  fontWeight: 500,
+}
+
+const inputStyle: CSSProperties = {
+  background: '#0f1b2d',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 6,
+  color: '#e8edf2',
+  fontSize: 12,
+  padding: '6px 10px',
+  width: '100%',
+  outline: 'none',
+}
+
 const cardStyle: CSSProperties = {
   background: '#162236',
   border: '1px solid rgba(255,255,255,0.07)',
@@ -654,7 +671,7 @@ function ImportTab({ people, accounts }: { people: any[]; accounts: any }) {
     }
   }
 
-  const inputS = { ...inputStyle } as any
+  const inputS = inputStyle as any
 
   return (
     <div style={{ maxWidth: 700 }}>
