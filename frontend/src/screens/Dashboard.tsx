@@ -299,6 +299,165 @@ function ScenarioSliders({ scenarioPath }: { scenarioPath: string }) {
 
 // (Historical backtest moved to Timeline screen — Chart/Table/Backtest tabs)
 
+
+// ── MC Insights panel ─────────────────────────────────────────────────────────
+
+interface MCInsight {
+  category: string; priority: string; title: string; detail: string
+  action: string; impact: string; colour: string; icon: string
+}
+interface MCInsightResult {
+  prob_fire: number; n_simulations: number
+  insights: MCInsight[]; overall_health: string; summary: string
+}
+
+function MCInsightsPanel({ scenarioPath, timeline, monteCarlo }: {
+  scenarioPath: string
+  timeline: any
+  monteCarlo: any
+}) {
+  if (!monteCarlo) return null
+
+  const latestSnap    = timeline?.years?.at(-1)
+  const fireYear      = timeline?.fire_year
+  const currentNW     = latestSnap?.total_net_worth ?? 0
+  const currentYear   = new Date().getFullYear()
+  const yearsToFire   = fireYear ? fireYear - currentYear : undefined
+
+  const params = new URLSearchParams({
+    scenario_path: scenarioPath,
+    prob_fire: String(monteCarlo.prob_fire ?? 0.85),
+    n_simulations: String(monteCarlo.n_simulations ?? 1000),
+    ...(fireYear         ? { fire_year: String(fireYear) }           : {}),
+    ...(currentNW        ? { current_nw: String(currentNW) }         : {}),
+    ...(yearsToFire      ? { years_to_fire: String(yearsToFire) }    : {}),
+  })
+
+  const { data, isLoading } = useQuery<MCInsightResult>({
+    queryKey: ['mc-insights', scenarioPath, monteCarlo.prob_fire],
+    queryFn: () => apiClient.get(`/insights/mc?${params}`).then(r => r.data),
+    staleTime: 300_000,
+    enabled: !!monteCarlo,
+  })
+
+  const PRIORITY_ORDER: Record<string,number> = { HIGH:0, MEDIUM:1, LOW:2 }
+  const HEALTH_COLOUR: Record<string,string> = {
+    excellent:'#2dbd7e', good:'#0e9aad', caution:'#f0a500', at_risk:'#e05252'
+  }
+
+  const highCount = data?.insights.filter(i=>i.priority==='HIGH').length ?? 0
+  const badge = data
+    ? (highCount > 0 ? `${highCount} urgent` : `${data.insights.length} insights`)
+    : undefined
+  const badgeColour = highCount > 0 ? '#e05252' : '#0e9aad'
+
+  return (
+    <Panel title="Plan Insights" badge={badge} accentColour={badgeColour} defaultOpen={!!highCount}>
+      {isLoading && <div style={{ color:'#8fa3b8', fontSize:13 }}>Generating insights…</div>}
+      {data && (
+        <>
+          <div style={{ background:`${HEALTH_COLOUR[data.overall_health]??'#0e9aad'}11`,
+                        border:`1px solid ${HEALTH_COLOUR[data.overall_health]??'#0e9aad'}44`,
+                        borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:13,
+                        color:'#e8edf2' }}>
+            {data.summary}
+          </div>
+          {[...data.insights].sort((a,b)=>(PRIORITY_ORDER[a.priority]??9)-(PRIORITY_ORDER[b.priority]??9))
+            .map((insight, i) => (
+            <InsightCard key={i} insight={insight} />
+          ))}
+        </>
+      )}
+    </Panel>
+  )
+}
+
+function InsightCard({ insight }: { insight: MCInsight }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <div style={{ background:`${insight.colour}0d`, border:`1px solid ${insight.colour}33`,
+                  borderRadius:8, padding:'10px 14px', marginBottom:8, cursor:'pointer' }}
+         onClick={()=>setExpanded(e=>!e)}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <span style={{ fontSize:16, flexShrink:0 }}>{insight.icon}</span>
+        <div style={{ flex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2 }}>
+            <span style={{ background:`${insight.colour}22`, color:insight.colour,
+                           border:`1px solid ${insight.colour}44`, borderRadius:3,
+                           padding:'1px 6px', fontSize:9, fontWeight:700 }}>
+              {insight.priority}
+            </span>
+            <span style={{ color:'#e8edf2', fontSize:12, fontWeight:600 }}>{insight.title}</span>
+          </div>
+          {expanded && (
+            <>
+              <p style={{ color:'#8fa3b8', fontSize:11, lineHeight:1.5, margin:'6px 0 4px' }}>
+                {insight.detail}
+              </p>
+              {insight.action && (
+                <p style={{ color:insight.colour, fontSize:11, margin:0, fontWeight:500 }}>
+                  → {insight.action}
+                </p>
+              )}
+              {insight.impact && (
+                <p style={{ color:'#8b949e', fontSize:10, margin:'4px 0 0',
+                            fontStyle:'italic' }}>
+                  Impact: {insight.impact}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <span style={{ color:'#8b949e', fontSize:11, flexShrink:0 }}>
+          {expanded ? '▲' : '▼'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ── Price staleness panel ─────────────────────────────────────────────────────
+
+interface StaleHolding {
+  account_name: string; holding_name: string; isin: string
+  days_since_update: number; current_price: number | null
+}
+interface StalenessData { stale_holdings: StaleHolding[]; has_stale: boolean }
+
+function PriceStalePanel({ scenarioPath }: { scenarioPath: string }) {
+  const { data } = useQuery<StalenessData>({
+    queryKey: ['price-staleness', scenarioPath],
+    queryFn: () => apiClient.get(`/market-data/staleness?scenario_path=${encodeURIComponent(scenarioPath)}`).then(r=>r.data),
+    staleTime: 60_000,
+  })
+
+  if (!data?.has_stale) return null
+
+  return (
+    <div style={{ background:'#f0a50011', border:'1px solid #f0a50044', borderRadius:10,
+                  padding:'10px 16px', marginTop:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ color:'#f0a500', fontSize:12, fontWeight:600 }}>
+          ⚠ {data.stale_holdings.length} holding{data.stale_holdings.length!==1?'s':''} with stale prices
+        </div>
+        <button onClick={()=>window.dispatchEvent(new CustomEvent('refresh-prices'))}
+                style={{ background:'#f0a500', color:'#fff', border:'none', borderRadius:6,
+                          padding:'4px 12px', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+          Refresh prices
+        </button>
+      </div>
+      <div style={{ marginTop:6, display:'flex', flexWrap:'wrap', gap:6 }}>
+        {data.stale_holdings.map((h,i) => (
+          <span key={i} style={{ background:'#f0a50018', color:'#f0a500', borderRadius:4,
+                                  padding:'2px 8px', fontSize:10 }}>
+            {h.holding_name} ({h.days_since_update}d)
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Sankey panel ──────────────────────────────────────────────────────────────
 
 interface SankeyData {
@@ -432,6 +591,12 @@ export function Dashboard() {
           <TimelineChart data={timeline?.years ?? []} fireYear={timeline?.fire_year} />
         )}
       </div>
+
+      {/* MC Plan Insights */}
+      <MCInsightsPanel scenarioPath={activeScenarioPath} timeline={timeline} monteCarlo={monteCarlo} />
+
+      {/* Price staleness alert */}
+      <PriceStalePanel scenarioPath={activeScenarioPath} />
 
       {/* Planning coach alerts */}
       <PlanningCoachPanel
