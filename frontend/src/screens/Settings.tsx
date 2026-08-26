@@ -3,11 +3,9 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useConfigStore } from '../store/configStore'
-import { useSimulationStore } from '../store/simulationStore'
-import { useConfigStore as cfg2 } from '../store/configStore'
 import { apiClient } from '../api/client'
 
 const TEAL='#0e9aad', GOLD='#d4a843', GREEN='#2dbd7e', RED='#e05252', PURP='#a78bfa'
@@ -40,7 +38,6 @@ interface AuthStart  { device_code: string; user_code: string; verification_url:
 interface AuthPoll   { status: string; message: string }
 
 function GoogleDriveCard() {
-  const qc = useQueryClient()
   const [clientId,     setClientId]     = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [authStart,    setAuthStart]    = useState<AuthStart|null>(null)
@@ -225,7 +222,7 @@ function GoogleDriveCard() {
 // ── IFA Export Pack ───────────────────────────────────────────────────────────
 
 function IFAExportCard() {
-  const { activeScenarioPath } = cfg2()
+  const { activeScenarioPath } = useConfigStore()
   const [preparedFor,  setPreparedFor]  = useState('')
   const [watermark,    setWatermark]    = useState('CONFIDENTIAL')
   const [jobId,        setJobId]        = useState<string|null>(null)
