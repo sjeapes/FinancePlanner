@@ -303,6 +303,8 @@ function ComparisonTable({ rows, colors }: ComparisonTableProps) {
 export function ScenariosScreen() {
   // Selected paths for comparison — always start with base
   const [selectedPaths, setSelectedPaths] = useState<string[]>([BASE_PATH])
+  const { timeline, monteCarlo }  = useSimulationStore()
+  const { activeScenarioPath }    = useConfigStore()
   // Full simulation data per path (for ScenarioOverlay chart)
   const [simulationData, setSimulationData] = useState<Record<string, YearSnapshot[]>>({})
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set())
