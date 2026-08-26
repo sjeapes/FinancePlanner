@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import {
   LayoutDashboard,
   TrendingUp,
+  BarChart,
   PieChart,
   Database,
   Calendar,
