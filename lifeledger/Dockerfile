@@ -26,7 +26,7 @@ FROM node:22-slim AS frontend-build
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner/archive/refs/heads/main.tar.gz
 # Bump APP_VERSION with every release to bust the Docker download cache
-ARG APP_VERSION=1.3.3
+ARG APP_VERSION=1.4.0
 
 # curl    — download repo tarball
 # python3 / make / g++ — node-gyp native build tools (some npm packages need these)
@@ -59,7 +59,7 @@ RUN npm run build
 FROM python:3.12-slim AS runtime
 
 ARG REPO_URL=https://github.com/sjeapes/FinancePlanner/archive/refs/heads/main.tar.gz
-ARG APP_VERSION=1.3.3
+ARG APP_VERSION=1.4.0
 
 # curl    — download repo tarball
 # gcc/g++ / libffi-dev — some Python wheels need native compilation
