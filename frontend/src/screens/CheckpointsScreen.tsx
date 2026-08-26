@@ -10,7 +10,7 @@ import { useSimulationStore } from '../store/simulationStore'
 import { apiClient } from '../api/client'
 import { CheckCircle, Plus, Trash2 } from 'lucide-react'
 
-const TEAL='#0e9aad', GOLD='#d4a843', GREEN='#2dbd7e', RED='#e05252'
+const TEAL='#0e9aad', GREEN='#2dbd7e', RED='#e05252'
 const tipStyle = { background:'#0f1b2d', border:'1px solid #30363d',
                    borderRadius:8, color:'#e8edf2', fontSize:11 }
 
