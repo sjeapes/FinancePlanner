@@ -505,6 +505,22 @@ def _register_routers(app: FastAPI) -> None:
         except ImportError as exc:
             logger.warning("insights router not available: %s", exc)
 
+        # ── Phase 11: Scenario comments ───────────────────────────────────────
+        try:
+            from backend.api.routes import comments
+            app.include_router(comments.router, prefix="/api", tags=["comments"])
+            logger.debug("_register_routers: comments router registered")
+        except ImportError as exc:
+            logger.warning("comments router not available: %s", exc)
+
+        # ── Phase 11: Read-only share links ───────────────────────────────────
+        try:
+            from backend.api.routes import share
+            app.include_router(share.router, prefix="/api", tags=["share"])
+            logger.debug("_register_routers: share router registered")
+        except ImportError as exc:
+            logger.warning("share router not available: %s", exc)
+
         logger.debug("_register_routers: all routers registered")
     except Exception as exc:
         logger.error("_register_routers: failed to register routers: %s", exc, exc_info=True)
