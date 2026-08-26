@@ -614,6 +614,19 @@ export function ScenariosScreen() {
           </p>
         </div>
       )}
+
+      {/* ── Annual Review (Phase 12) ─────────────────────────────────────────── */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.8px',
+                      color: '#8fa3b8', textTransform: 'uppercase', marginBottom: 14 }}>
+          Annual Review
+        </div>
+        <AnnualReviewPanel
+          scenarioPath={activeScenarioPath ?? 'data/scenarios/base.yaml'}
+          timeline={timeline}
+          monteCarlo={monteCarlo}
+        />
+      </div>
     </div>
   )
 }
