@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Legend, ReferenceLine, BarChart, Bar, Cell,
+  Legend, BarChart, Bar, Cell,
 } from 'recharts'
 import { PageHeader } from '../components/layout/PageHeader'
 import { apiClient } from '../api/client'
