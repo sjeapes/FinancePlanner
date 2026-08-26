@@ -9,7 +9,7 @@ import { useScenarioStore } from '../store/scenarioStore'
 import type { AccountBreakdown, AccountSnapshotOut } from '../types'
 
 const TEAL='#0e9aad', GOLD='#d4a843', GREEN='#2dbd7e', PURP='#a78bfa', SLATE='#8fa3b8'
-const COLORS = [TEAL, GOLD, GREEN, PURP, SLATE]
+const RED='#e05252'
 const tipStyle = { background:'#0f1b2d', border:'1px solid #30363d',
                    borderRadius:8, color:'#e8edf2', fontSize:11 }
 
@@ -101,7 +101,7 @@ export function PortfolioMixScreen() {
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value"
-                     label={({name,percent})=>`${(percent*100).toFixed(0)}%`}
+                     label={({percent})=>`${(percent*100).toFixed(0)}%`}
                      labelLine={false}>
                   {pieData.map((_,i)=><Cell key={i} fill={pieData[i].color} />)}
                 </Pie>
