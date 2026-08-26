@@ -863,22 +863,6 @@ function ImportTab({ people, accounts }: { people: any[]; accounts: any }) {
 
 
 
-// ── ISIN enrichment (Phase 10) ────────────────────────────────────────────────
-function ISINBadge({ isin }: { isin?: string }) {
-  const { data } = useQuery({
-    queryKey: ['isin', isin],
-    queryFn: () => apiClient.get(`/market-data/isin/${isin}`).then(r => r.data),
-    enabled: !!isin && isin.length >= 10,
-    staleTime: Infinity,
-  })
-  if (!isin) return null
-  if (data?.name && !data.error) {
-    return <span style={{ color:'#8fa3b8', fontSize:10, display:'block' }}>
-      {data.ticker ? data.ticker + ' · ' : ''}{data.name.slice(0,30)}
-    </span>
-  }
-  return <span style={{ color:'#30363d', fontSize:10 }}>{isin}</span>
-}
 
 export function DataManagement() {
   const [activeTab, setActiveTab] = useState<TabKey>('people')
