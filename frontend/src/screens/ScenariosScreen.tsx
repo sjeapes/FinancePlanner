@@ -412,6 +412,14 @@ export function ScenariosScreen() {
         </div>
       </div>
 
+      {/* Comments and share for the base/active scenario */}
+      <div style={{ background: '#0f1b2d', borderRadius: 10, padding: '14px 16px',
+                    marginTop: 12, display: 'grid', gridTemplateColumns: '1fr auto', gap: 16,
+                    alignItems: 'flex-start', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <ScenarioComments scenarioId={selectedPaths[0].replace(/[\/]/g, '_').replace('.yaml', '')} />
+        <ShareButton scenarioPath={selectedPaths[0]} />
+      </div>
+
       {/* ── Template gallery ──────────────────────────────────────────────── */}
       <div
         style={{
