@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
   ReferenceLine, Cell,
 } from 'recharts'
