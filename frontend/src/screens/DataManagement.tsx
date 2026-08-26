@@ -1,4 +1,3 @@
-import { apiClient } from '../api/client'
 /**
  * DataManagement.tsx
  * Tabbed data management screen for editing all financial data via the API.
