@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSimulationStore } from '../store/simulationStore'
 import { useConfigStore } from '../store/configStore'
 import { useState, useCallback } from 'react'
@@ -632,6 +632,108 @@ export function ScenariosScreen() {
 }
 
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario Comments — Phase 11
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Comment { id: string; text: string; author: string; created_at: string }
+
+function ScenarioComments({ scenarioId }: { scenarioId: string }) {
+  const qc  = useQueryClient()
+  const [text, setText] = useState('')
+
+  const { data: comments = [] } = useQuery<Comment[]>({
+    queryKey: ['comments', scenarioId],
+    queryFn: () => apiClient.get(`/scenarios/${encodeURIComponent(scenarioId)}/comments`)
+                           .then(r => r.data),
+    staleTime: 30_000,
+  })
+
+  const addComment = useMutation({
+    mutationFn: () => apiClient.post(`/scenarios/${encodeURIComponent(scenarioId)}/comments`,
+                                     { text, author: 'User' }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['comments', scenarioId] }); setText('') },
+  })
+
+  const delComment = useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete(`/scenarios/${encodeURIComponent(scenarioId)}/comments/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', scenarioId] }),
+  })
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#8b949e',
+                    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+        Notes
+      </div>
+      {comments.map(c => (
+        <div key={c.id} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, background: '#0f1b2d', borderRadius: 6, padding: '7px 10px',
+                        fontSize: 11, color: '#e8edf2', lineHeight: 1.5 }}>
+            {c.text}
+            <span style={{ color: '#8b949e', marginLeft: 8, fontSize: 9 }}>
+              {c.created_at.slice(0, 10)}
+            </span>
+          </div>
+          <button onClick={() => delComment.mutate(c.id)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer',
+                            color: '#8b949e', padding: '4px', fontSize: 12, opacity: 0.5 }}>✕</button>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        <input style={{ flex: 1, background: '#0f1b2d', border: '1px solid #30363d', borderRadius: 6,
+                        color: '#e8edf2', padding: '6px 10px', fontSize: 11, outline: 'none' }}
+               placeholder="Add a note…" value={text} onChange={e => setText(e.target.value)}
+               onKeyDown={e => { if (e.key === 'Enter' && text.trim()) addComment.mutate() }} />
+        <button onClick={() => addComment.mutate()} disabled={!text.trim()}
+                style={{ background: '#0e9aad', color: '#fff', border: 'none', borderRadius: 6,
+                          padding: '6px 12px', fontSize: 11, cursor: 'pointer',
+                          opacity: !text.trim() ? 0.4 : 1 }}>Add</button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Share link — Phase 11
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ShareButton({ scenarioPath }: { scenarioPath: string }) {
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [copied,   setCopied]   = useState(false)
+
+  const createShare = useMutation({
+    mutationFn: () => apiClient.post('/scenarios/share',
+      { scenario_path: scenarioPath, label: scenarioPath.split('/').pop()?.replace('.yaml','') ?? '' })
+      .then(r => r.data as { url: string }),
+    onSuccess: d => setShareUrl(d.url),
+  })
+
+  if (shareUrl) return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <input readOnly value={shareUrl}
+             style={{ flex: 1, background: '#0f1b2d', border: '1px solid #30363d', borderRadius: 6,
+                       color: '#0e9aad', padding: '5px 10px', fontSize: 10, outline: 'none',
+                       fontFamily: 'DM Mono, monospace' }} />
+      <button onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(()=>setCopied(false),2000) }}
+              style={{ background: copied?'#2dbd7e':'#0e9aad', color:'#fff', border:'none',
+                        borderRadius:6, padding:'5px 12px', fontSize:10, cursor:'pointer' }}>
+        {copied ? '✓ Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+
+  return (
+    <button onClick={() => createShare.mutate()} disabled={createShare.isPending}
+            style={{ background:'transparent', color:'#8fa3b8', border:'1px solid #30363d',
+                      borderRadius:6, padding:'5px 12px', fontSize:11, cursor:'pointer',
+                      display:'flex', alignItems:'center', gap:6 }}>
+      🔗 {createShare.isPending ? 'Creating…' : 'Share (read-only)'}
+    </button>
+  )
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // Annual Review — Phase 12
 // ─────────────────────────────────────────────────────────────────────────────
