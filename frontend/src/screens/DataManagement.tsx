@@ -1,3 +1,4 @@
+import { apiClient } from '../api/client'
 /**
  * DataManagement.tsx
  * Tabbed data management screen for editing all financial data via the API.
@@ -860,6 +861,23 @@ function ImportTab({ people, accounts }: { people: any[]; accounts: any }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 
+
+
+// ── ISIN enrichment (Phase 10) ────────────────────────────────────────────────
+async function enrichISINs(holdings: Array<{ isin?: string; name?: string; ticker?: string }>)
+  : Promise<Map<string, { name: string; ticker: string; exchange: string }>> {
+  const result = new Map<string, { name: string; ticker: string; exchange: string }>()
+  const isins  = [...new Set(holdings.map(h => h.isin).filter(Boolean) as string[])]
+  await Promise.allSettled(
+    isins.map(async isin => {
+      try {
+        const r = await apiClient.get(`/market-data/isin/${isin}`)
+        if (r.data?.name && !r.data.error) result.set(isin, r.data)
+      } catch { /* ignore individual failures */ }
+    })
+  )
+  return result
+}
 
 export function DataManagement() {
   const [activeTab, setActiveTab] = useState<TabKey>('people')
