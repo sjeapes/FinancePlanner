@@ -11,6 +11,7 @@ import {
   GitBranch,
   CheckCircle,
   Settings,
+  Flame,
 } from 'lucide-react'
 
 type Screen =
@@ -19,6 +20,7 @@ type Screen =
   | 'portfolio'
   | 'data'
   | 'retirement'
+  | 'fire'
   | 'estate'
   | 'generational'
   | 'tax'
@@ -40,6 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'portfolio',    label: 'Portfolio Mix',       icon: PieChart,        group: 'Overview' },
   { key: 'data',         label: 'Data',                icon: Database,        group: 'Data' },
   { key: 'retirement',   label: 'Retirement Planner',  icon: Calendar,        group: 'Planning' },
+  { key: 'fire',         label: 'FIRE',                icon: Flame,           group: 'Planning' },
   { key: 'estate',       label: 'Estate Planner',      icon: Scale,           group: 'Planning' },
   { key: 'generational', label: 'Generational',         icon: Globe,           group: 'Planning' },
   { key: 'tax',           label: 'Tax Optimiser',       icon: TrendingUp,      group: 'Planning' },

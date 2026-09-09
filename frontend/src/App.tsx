@@ -7,6 +7,7 @@ import { Dashboard } from './screens/Dashboard'
 import { TimelineGraph } from './screens/TimelineGraph'
 import { PortfolioMixScreen } from './screens/PortfolioMixScreen'
 import { RetirementPlanner } from './screens/RetirementPlanner'
+import { FireTab } from './screens/FireTab'
 import { EstatePlanner } from './screens/EstatePlanner'
 import { GenerationalPlanning } from './screens/GenerationalPlanning'
 import { TaxOptimiser } from './screens/TaxOptimiser'
@@ -26,6 +27,7 @@ type Screen =
   | 'portfolio'
   | 'data'
   | 'retirement'
+  | 'fire'
   | 'estate'
   | 'generational'
   | 'tax'
@@ -40,6 +42,7 @@ const SCREEN_COMPONENTS: Record<Screen, ComponentType> = {
   portfolio:   PortfolioMixScreen,
   data:        DataManagement,
   retirement:  RetirementPlanner,
+  fire:        FireTab,
   estate:      EstatePlanner,
   generational: GenerationalPlanning,
   tax:           TaxOptimiser,

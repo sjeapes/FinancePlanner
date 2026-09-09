@@ -1,10 +1,16 @@
 /**
  * LifeEventForm.tsx
- * Full form for a LifeEvent.
+ * Full form for a LifeEvent. Supports linking the event's date to a
+ * person's retirement or end-of-plan (life expectancy) date instead of
+ * typing a fixed date — the link is re-resolved from that person's
+ * current retirement_age/life_expectancy every time the scenario loads.
  */
 
 import type { CSSProperties } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+
+type DateLink = 'none' | 'retirement' | 'death'
 
 interface FormValues {
   id: string
@@ -18,6 +24,7 @@ interface FormValues {
 
 interface Props {
   event?: any
+  people?: any[]
   onSave: (data: any) => void
   onCancel: () => void
 }
@@ -58,8 +65,15 @@ const sectionHeadStyle: CSSProperties = {
   paddingBottom: 6,
 }
 
-export function LifeEventForm({ event, onSave, onCancel }: Props) {
+export function LifeEventForm({ event, people = [], onSave, onCancel }: Props) {
   const isEditing = !!event
+
+  const [dateLink, setDateLink] = useState<DateLink>(
+    event?.date_link === 'retirement' || event?.date_link === 'death' ? event.date_link : 'none'
+  )
+  const [linkPersonId, setLinkPersonId] = useState<string>(
+    event?.date_link_person_id ?? people[0]?.id ?? ''
+  )
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -83,6 +97,8 @@ export function LifeEventForm({ event, onSave, onCancel }: Props) {
       amount: Number(values.amount),
       currency: values.currency,
       affects_account_id: values.affects_account_id || null,
+      date_link: dateLink === 'none' ? null : dateLink,
+      date_link_person_id: dateLink === 'none' ? null : (linkPersonId || null),
     }
     onSave(payload)
   }
@@ -117,8 +133,14 @@ export function LifeEventForm({ event, onSave, onCancel }: Props) {
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Date</label>
-          <input type="date" {...register('date', { required: 'Date is required' })} style={inputStyle} />
-          {errors.date && <div style={errorStyle}>{errors.date.message}</div>}
+          {dateLink === 'none' ? (
+            <input type="date" {...register('date', { required: dateLink === 'none' ? 'Date is required' : false })} style={inputStyle} />
+          ) : (
+            <div style={{ ...inputStyle, color: '#8fa3b8', display: 'flex', alignItems: 'center' }}>
+              Tracks {dateLink === 'retirement' ? 'retirement date' : 'end-of-plan date'} — see below
+            </div>
+          )}
+          {errors.date && dateLink === 'none' && <div style={errorStyle}>{errors.date.message}</div>}
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Amount</label>
@@ -143,6 +165,39 @@ export function LifeEventForm({ event, onSave, onCancel }: Props) {
           <input {...register('affects_account_id')} style={inputStyle} placeholder="e.g. vanguard_isa" />
         </div>
       </div>
+
+      <div style={{ ...sectionHeadStyle, marginTop: 20 }}>Date Link</div>
+      <p style={{ color: '#8fa3b8', fontSize: 12, marginTop: -6, marginBottom: 10 }}>
+        Instead of a fixed date, tie this event to a person's key life date. If their
+        retirement age or life expectancy changes later (in the People tab), this event's
+        date moves with it automatically.
+      </p>
+      <div style={{ display: 'flex', gap: 18, marginBottom: 14, flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#e8edf2', cursor: 'pointer' }}>
+          <input type="checkbox" checked={dateLink === 'none'}
+                 onChange={() => setDateLink('none')} />
+          Fixed date
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#e8edf2', cursor: 'pointer' }}>
+          <input type="checkbox" checked={dateLink === 'retirement'}
+                 onChange={() => setDateLink('retirement')} />
+          Link to retirement date
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#e8edf2', cursor: 'pointer' }}>
+          <input type="checkbox" checked={dateLink === 'death'}
+                 onChange={() => setDateLink('death')} />
+          Link to end-of-plan (life expectancy) date
+        </label>
+      </div>
+      {dateLink !== 'none' && (
+        <div style={{ ...fieldStyle, maxWidth: 300 }}>
+          <label style={labelStyle}>Which person?</label>
+          <select value={linkPersonId} onChange={(e) => setLinkPersonId(e.target.value)} style={inputStyle}>
+            {people.length === 0 && <option value="">No people found</option>}
+            {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
         <button

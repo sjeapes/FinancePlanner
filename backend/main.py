@@ -425,6 +425,14 @@ def _register_routers(app: FastAPI) -> None:
         except Exception as exc:
             logger.error("startup: failed to register backup router: %s", exc, exc_info=True)
 
+        # ── FIRE tab (guided FIRE number + target editing) ────────────────────
+        try:
+            from backend.api.routes import fire as fire_routes
+            app.include_router(fire_routes.router, prefix="/api", tags=["fire"])
+            logger.info("startup: FIRE router registered")
+        except Exception as exc:
+            logger.error("startup: failed to register FIRE router: %s", exc, exc_info=True)
+
         # ── Phase 4: Retirement planning ─────────────────────────────────────
         try:
             from backend.api.routes import retirement

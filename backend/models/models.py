@@ -602,11 +602,20 @@ class LifeEvent:
     @param id Unique identifier.
     @param name Display name.
     @param event_type EventType enum.
-    @param date Event date.
+    @param date Event date. Ignored (and recomputed) when date_link is set.
     @param amount Financial impact (positive = inflow, negative = outflow).
     @param currency Event currency.
     @param affects_account_id Account to credit/debit.
     @param probability Probability weight for Monte Carlo (0.0–1.0).
+    @param date_link If set, the event's date tracks a person's key date
+                      dynamically instead of a fixed literal date:
+                      'retirement' -> that person's retirement_year(),
+                      'death'      -> that person's death_year().
+                      Re-resolved on every scenario load, so changing the
+                      person's retirement_age/life_expectancy automatically
+                      moves the event with them. None = use literal `date`.
+    @param date_link_person_id Which person's date to link to. Defaults to
+                                the first person in the scenario if unset.
     """
     id: str
     name: str
@@ -616,6 +625,8 @@ class LifeEvent:
     currency: str = "GBP"
     affects_account_id: Optional[str] = None
     probability: float = 1.0
+    date_link: Optional[str] = None
+    date_link_person_id: Optional[str] = None
 
 
 @dataclass

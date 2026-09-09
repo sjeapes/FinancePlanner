@@ -1,7 +1,7 @@
 import { useState } from 'react'
 type Screen =
   | 'dashboard' | 'timeline' | 'portfolio' | 'data'
-  | 'retirement' | 'estate' | 'generational' | 'tax' | 'opportunity' | 'scenarios' | 'checkpoints' | 'settings'
+  | 'retirement' | 'fire' | 'estate' | 'generational' | 'tax' | 'opportunity' | 'scenarios' | 'checkpoints' | 'settings'
 
 interface NavItem { id: Screen; label: string; icon: string }
 
@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 const OVERFLOW_ITEMS: NavItem[] = [
+  { id: 'fire',         label: 'FIRE',       icon: '🔥' },
   { id: 'data',         label: 'Data',       icon: '📋' },
   { id: 'generational', label: 'Generational', icon: '🌍' },
   { id: 'tax',          label: 'Tax Opt',    icon: '📊' },

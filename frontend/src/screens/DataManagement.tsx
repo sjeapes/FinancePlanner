@@ -812,6 +812,50 @@ function BackupTab() {
   )
 }
 
+// ── Key life dates (retirement / death) ──────────────────────────────────────
+
+/** @brief Client-side mirror of Person.retirement_year()/death_year() for display only. */
+function personKeyYears(p: any): { retirementYear: number | null; deathYear: number | null } {
+  const dobYear = p?.date_of_birth ? new Date(p.date_of_birth).getFullYear() : null
+  if (!dobYear) return { retirementYear: null, deathYear: null }
+  return {
+    retirementYear: dobYear + (p.retirement_age ?? 65),
+    deathYear: dobYear + (p.life_expectancy ?? 90),
+  }
+}
+
+function KeyLifeDatesPanel({ people }: { people: any[] }) {
+  if (people.length === 0) return null
+  return (
+    <div style={{ background: '#0f1b2d', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8, padding: 14, marginBottom: 16 }}>
+      <div style={{ ...sectionHeadStyle, marginTop: 0 }}>Key Life Dates</div>
+      <p style={{ color: '#8fa3b8', fontSize: 12, marginTop: -6, marginBottom: 10 }}>
+        Retirement and end-of-plan dates come from each person's <strong>People</strong> record
+        (retirement age / life expectancy). Any life event below can link to these dates instead
+        of a fixed one — edit them there and every linked event moves automatically.
+      </p>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+        {people.map(p => {
+          const { retirementYear, deathYear } = personKeyYears(p)
+          return (
+            <div key={p.id} style={{ display: 'flex', gap: 16 }}>
+              <div>
+                <div style={labelStyle}>{p.name} — Retirement</div>
+                <div style={monoStyle}>{retirementYear ?? '—'}</div>
+              </div>
+              <div>
+                <div style={labelStyle}>{p.name} — Life Expectancy</div>
+                <div style={monoStyle}>{deathYear ?? '—'}</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function ImportTab({ people, accounts }: { people: any[]; accounts: any }) {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1342,11 +1386,13 @@ export function DataManagement() {
         )}
 
         {activeTab === 'life_events' && (
-          <GenericTab
-            accountType="life_event"
-            items={d.life_events ?? []}
-            people={people}
-            title="Life Events"
+          <>
+            <KeyLifeDatesPanel people={people} />
+            <GenericTab
+              accountType="life_event"
+              items={d.life_events ?? []}
+              people={people}
+              title="Life Events"
             renderCard={(item) => (
               <>
                 <div style={cardNameStyle}>{item.name}</div>
@@ -1354,15 +1400,24 @@ export function DataManagement() {
                   <span>{item.event_type}</span>
                   <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
                   <span style={monoStyle}>{item.date}</span>
+                  {item.date_link && (
+                    <>
+                      <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
+                      <span style={{ color: '#0e9aad' }}>
+                        🔗 linked to {item.date_link}
+                      </span>
+                    </>
+                  )}
                   <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
                   <span style={monoStyle}>{fmtMoney(item.amount)}</span>
                 </div>
               </>
             )}
             renderForm={(item, onSave, onCancel) => (
-              <LifeEventForm event={item ?? undefined} onSave={onSave} onCancel={onCancel} />
+              <LifeEventForm event={item ?? undefined} people={people} onSave={onSave} onCancel={onCancel} />
             )}
-          />
+            />
+          </>
         )}
 
         {activeTab === 'import' && (

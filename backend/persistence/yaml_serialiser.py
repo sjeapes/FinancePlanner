@@ -478,10 +478,62 @@ def parse_life_event(d: dict) -> Optional[LifeEvent]:
             currency=str(d.get("currency", "GBP")),
             affects_account_id=d.get("affects_account_id"),
             probability=_float(d.get("probability", 1.0)),
+            date_link=d.get("date_link") or None,
+            date_link_person_id=d.get("date_link_person_id") or None,
         )
     except KeyError as exc:
         logger.error("parse_life_event: missing key %s in %s", exc, d)
         return None
+
+
+def resolve_life_event_date_links(scenario: "Scenario") -> None:
+    """
+    @brief Recompute the `date` of every linked life event from live person data.
+
+    Life events with `date_link` set ('retirement' or 'death') have their
+    `date` field overwritten in place using the referenced person's current
+    `retirement_year()`/`death_year()` — so a scenario always reflects the
+    person's *current* retirement_age/life_expectancy rather than a stale
+    date that was typed in once and never revisited.
+
+    @param scenario  Scenario with `people` already populated (must be
+                      called after people are parsed, before life events
+                      are consumed by the projection engine).
+    """
+    if not scenario.people:
+        return
+    people_by_id = {p.id: p for p in scenario.people}
+    default_person = scenario.people[0]
+
+    for ev in scenario.life_events:
+        if not ev.date_link:
+            continue
+        person = people_by_id.get(ev.date_link_person_id) if ev.date_link_person_id else default_person
+        if person is None:
+            logger.warning(
+                "resolve_life_event_date_links: event '%s' links to unknown person_id '%s' — leaving date as-is",
+                ev.id, ev.date_link_person_id,
+            )
+            continue
+        try:
+            if ev.date_link == "retirement":
+                year = person.retirement_year()
+            elif ev.date_link == "death":
+                year = person.death_year()
+            else:
+                logger.warning("resolve_life_event_date_links: unknown date_link '%s' on event '%s'", ev.date_link, ev.id)
+                continue
+            try:
+                ev.date = date(year, person.date_of_birth.month, person.date_of_birth.day)
+            except ValueError:
+                # Birthday is Feb 29 and `year` isn't a leap year.
+                ev.date = date(year, person.date_of_birth.month, 28)
+            logger.info(
+                "resolve_life_event_date_links: '%s' linked to %s's %s -> %s",
+                ev.id, person.id, ev.date_link, ev.date,
+            )
+        except Exception as exc:
+            logger.error("resolve_life_event_date_links: failed for event '%s': %s", ev.id, exc, exc_info=True)
 
 
 def parse_expense_bucket(d: dict) -> Optional[ExpenseBucket]:
@@ -619,6 +671,7 @@ def parse_scenario(d: dict) -> Optional[Scenario]:
             e = parse_life_event(ev)
             if e:
                 sc.life_events.append(e)
+        resolve_life_event_date_links(sc)
 
         # FIRE target
         sc.fire_target = parse_fire_target(d.get("fire_target"))
