@@ -510,7 +510,7 @@ export function RetirementPlanner() {
   const { activeScenarioPath } = useConfigStore()
 
   const fireYear  = timeline?.fire_year
-  const latestNW  = timeline?.years.at(-1)?.total_net_worth
+  const latestNW  = timeline?.years?.[0]?.total_net_worth
 
   return (
     <div>

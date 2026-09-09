@@ -104,3 +104,28 @@ engine:
   default_growth_rate: 0.07
   default_savings_rate: 0.20
   pension_state_deferral_bonus_per_year: 0.01
+
+# ── Backup / restore (full data export & import) ──────────────
+backup:
+  # Folders/files bundled into an export archive, relative to project root.
+  include_paths:
+    - "config"
+    - "data/scenarios"
+    - "data/checkpoints"
+    - "data/comments"
+    - "data/reports_output"
+  # Whether to include the SQLite database (share links, sync state,
+  # cached market prices, and encrypted API keys) in the export.
+  include_database: true
+  # If false, the encrypted api_keys table is stripped from the exported
+  # copy of the database even when include_database is true. Keep false
+  # for exports you intend to share/back up off-device; set true only for
+  # same-machine restores where re-entering API keys is inconvenient.
+  include_api_keys_in_export: false
+  # Number of rolling pre-import safety backups to retain in data/backups/.
+  max_backups_retained: 10
+  # Where automatic pre-import safety backups are written, relative to project root.
+  backup_dir: "data/backups"
+  # Require the manifest's app version to match before allowing import.
+  # Set false to allow cross-version restores at the user's own risk.
+  enforce_version_match: false

@@ -760,8 +760,8 @@ export function AnnualReviewPanel({ scenarioPath, timeline, monteCarlo }: {
     staleTime: 30_000,
   })
 
-  const latestSnap = timeline?.years?.at(-1)
-  const currentNW  = latestSnap?.total_net_worth ?? 0
+  const currentSnap = timeline?.years?.[0]
+  const currentNW  = currentSnap?.total_net_worth ?? 0
   const fireYear   = timeline?.fire_year
 
   async function saveSnapshot() {

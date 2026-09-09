@@ -102,6 +102,7 @@ env/
 # ──────────────────────────────────────────────
 # SQLite DB (contains API keys — never commit)
 data/lifeledger.db
+data/backups/
 # Log output
 logs/lifeledger.log
 # Google Drive OAuth token

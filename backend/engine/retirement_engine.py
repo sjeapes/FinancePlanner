@@ -1233,13 +1233,18 @@ class RetirementEngine:
                 if atype in cfg.liquid_account_types:
                     liquid_accounts[acc_id] = round(float(acc_snap.value), 2)
         else:
-            # Fallback: scan savings accounts
-            for acc in scenario.savings_accounts:
+            # Fallback: scan savings AND investment accounts directly from the
+            # scenario. NOTE: SavingsAccount/InvestmentAccount both expose the
+            # balance as `current_value` (not `current_balance` — that field
+            # only exists on Mortgage). Using the wrong attribute silently
+            # returns 0 for every account via getattr's default, which is why
+            # the emergency fund previously always showed as empty here.
+            for acc in list(scenario.savings_accounts) + list(scenario.investment_accounts):
                 atype = getattr(acc, "account_type", None)
                 if atype and hasattr(atype, "value"):
                     atype = atype.value
                 if str(atype) in cfg.liquid_account_types:
-                    bal = float(getattr(acc, "current_balance", 0))
+                    bal = float(getattr(acc, "current_value", 0))
                     liquid_accounts[getattr(acc, "id", "?")] = bal
 
         total_liquid = round(sum(liquid_accounts.values()), 2)

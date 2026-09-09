@@ -417,6 +417,14 @@ def _register_routers(app: FastAPI) -> None:
         app.include_router(sync.router,         prefix="/api", tags=["sync"])
         app.include_router(market_data.router,  prefix="/api", tags=["market-data"])
 
+        # ── Backup / restore (full data export & import) ─────────────────────
+        try:
+            from backend.api.routes import backup as backup_routes
+            app.include_router(backup_routes.router, prefix="/api", tags=["backup"])
+            logger.info("startup: backup/restore router registered")
+        except Exception as exc:
+            logger.error("startup: failed to register backup router: %s", exc, exc_info=True)
+
         # ── Phase 4: Retirement planning ─────────────────────────────────────
         try:
             from backend.api.routes import retirement

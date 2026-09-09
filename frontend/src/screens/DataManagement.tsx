@@ -37,6 +37,7 @@ type TabKey =
   | 'expenses'
   | 'life_events'
   | 'import'
+  | 'backup'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'people', label: 'People' },
@@ -48,6 +49,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'expenses', label: 'Expenses' },
   { key: 'life_events', label: 'Life Events' },
   { key: 'import', label: '↑ Import' },
+  { key: 'backup', label: '⇄ Backup' },
 ]
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -595,6 +597,218 @@ function ConfidenceBadge({ score }: { score: number }) {
   return (
     <span style={{ background: colour + '22', color: colour, border: `1px solid ${colour}44`,
                    borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 600 }}>{label}</span>
+  )
+}
+
+// ── Backup / Restore tab ─────────────────────────────────────────────────────
+
+interface BackupListItem { name: string; size_bytes: number; created_at: string }
+
+function apiBase(): string {
+  const base = window.location.pathname.replace(/\/+$/, '')
+  return `${window.location.protocol}//${window.location.host}${base}/api`
+}
+
+function fmtBytes(n: number): string {
+  if (n >= 1_048_576) return `${(n / 1_048_576).toFixed(1)} MB`
+  if (n >= 1024) return `${(n / 1024).toFixed(0)} KB`
+  return `${n} B`
+}
+
+function BackupTab() {
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportedAt, setExportedAt] = useState<string | null>(null)
+
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<any>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [confirmImport, setConfirmImport] = useState(false)
+
+  const [backups, setBackups] = useState<BackupListItem[]>([])
+  const [backupsLoading, setBackupsLoading] = useState(false)
+
+  async function loadBackups() {
+    setBackupsLoading(true)
+    try {
+      const res = await fetch(`${apiBase()}/backup/list`)
+      if (res.ok) {
+        const data = await res.json()
+        setBackups(data.backups ?? [])
+      }
+    } catch {
+      // non-fatal — safety-backup list is informational only
+    } finally {
+      setBackupsLoading(false)
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true); setExportError(null)
+    try {
+      const res = await fetch(`${apiBase()}/backup/export`)
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = /filename="([^"]+)"/.exec(disposition)
+      const filename = match?.[1] ?? `lifeledger_backup_${Date.now()}.zip`
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+      setExportedAt(new Date().toLocaleString())
+    } catch (e: any) {
+      setExportError(e.message ?? 'Export failed')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleImport() {
+    if (!importFile) return
+    setImporting(true); setImportResult(null); setImportError(null)
+    const form = new FormData()
+    form.append('file', importFile)
+    try {
+      const res = await fetch(`${apiBase()}/backup/import`, { method: 'POST', body: form })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.detail ?? `Server error ${res.status}`)
+      setImportResult(data)
+      setConfirmImport(false)
+      setImportFile(null)
+      loadBackups()
+    } catch (e: any) {
+      setImportError(e.message ?? 'Import failed')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 700 }}>
+      {/* Export */}
+      <div style={{ marginBottom: 28 }}>
+        <span style={{ color: '#e8edf2', fontSize: 15, fontWeight: 600 }}>Export All Data</span>
+        <p style={{ color: '#8fa3b8', fontSize: 12, marginTop: 4, marginBottom: 12 }}>
+          Downloads a single ZIP with every scenario, checkpoint, comment, and config file
+          (and, per your backup config, the database). Keep it somewhere safe — it can fully
+          restore this instance on another device.
+        </p>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          style={{
+            background: '#0e9aad', color: '#fff', border: 'none', borderRadius: 6,
+            padding: '8px 18px', fontSize: 13, fontWeight: 600,
+            cursor: exporting ? 'default' : 'pointer', opacity: exporting ? 0.6 : 1,
+          }}
+        >
+          {exporting ? 'Building export…' : '↓ Export all data'}
+        </button>
+        {exportedAt && (
+          <div style={{ color: '#2dbd7e', fontSize: 12, marginTop: 8 }}>
+            ✓ Downloaded at {exportedAt}
+          </div>
+        )}
+        {exportError && (
+          <div style={{ color: '#e05252', fontSize: 12, marginTop: 8 }}>⚠ {exportError}</div>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '20px 0' }} />
+
+      {/* Import */}
+      <div style={{ marginBottom: 28 }}>
+        <span style={{ color: '#e8edf2', fontSize: 15, fontWeight: 600 }}>Import / Restore</span>
+        <p style={{ color: '#8fa3b8', fontSize: 12, marginTop: 4, marginBottom: 12 }}>
+          Restores everything from a previously exported ZIP. A safety backup of your
+          <em> current</em> data is always taken automatically before anything is overwritten,
+          so this can be undone.
+        </p>
+        <input
+          type="file" accept=".zip"
+          onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); setImportError(null) }}
+          style={{ color: '#8fa3b8', fontSize: 12, marginBottom: 12, display: 'block' }}
+        />
+        {importFile && !confirmImport && (
+          <button
+            onClick={() => setConfirmImport(true)}
+            style={{ background: '#d4a843', color: '#1a1f2b', border: 'none', borderRadius: 6,
+                      padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Restore "{importFile.name}"…
+          </button>
+        )}
+        {confirmImport && (
+          <div style={{ background: '#e0525211', border: '1px solid #e0525244', borderRadius: 8, padding: 14 }}>
+            <div style={{ color: '#e05252', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+              This will overwrite your current scenarios, checkpoints, comments, and config
+              with the contents of "{importFile?.name}".
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={handleImport}
+                disabled={importing}
+                style={{ background: '#e05252', color: '#fff', border: 'none', borderRadius: 6,
+                          padding: '6px 16px', fontSize: 12, fontWeight: 600,
+                          cursor: importing ? 'default' : 'pointer', opacity: importing ? 0.6 : 1 }}
+              >
+                {importing ? 'Restoring…' : 'Yes, restore now'}
+              </button>
+              <button
+                onClick={() => setConfirmImport(false)}
+                disabled={importing}
+                style={{ background: 'transparent', color: '#8fa3b8', border: '1px solid #8fa3b855',
+                          borderRadius: 6, padding: '6px 16px', fontSize: 12, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {importResult && (
+          <div style={{ color: '#2dbd7e', fontSize: 12, marginTop: 10 }}>
+            ✓ {importResult.message}
+            {importResult.safety_backup && <> — safety backup saved as <code>{importResult.safety_backup}</code></>}
+            {importResult.warnings?.length > 0 && (
+              <ul style={{ color: '#d4a843', marginTop: 6, paddingLeft: 18 }}>
+                {importResult.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+        {importError && (
+          <div style={{ color: '#e05252', fontSize: 12, marginTop: 8 }}>⚠ {importError}</div>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '20px 0' }} />
+
+      {/* Safety backups list */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ color: '#e8edf2', fontSize: 15, fontWeight: 600 }}>Local Safety Backups</span>
+          <button onClick={loadBackups} disabled={backupsLoading}
+                  style={{ background: 'transparent', color: '#0e9aad', border: 'none', fontSize: 11, cursor: 'pointer' }}>
+            {backupsLoading ? 'loading…' : 'refresh'}
+          </button>
+        </div>
+        {backups.length === 0 ? (
+          <p style={{ color: '#8fa3b8', fontSize: 12 }}>None yet — created automatically before each import.</p>
+        ) : (
+          backups.map(b => (
+            <div key={b.name} style={{ display: 'flex', justifyContent: 'space-between',
+                                        fontSize: 12, color: '#8fa3b8', padding: '4px 0' }}>
+              <span>{b.name}</span>
+              <span>{fmtBytes(b.size_bytes)} · {new Date(b.created_at).toLocaleString()}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -1154,6 +1368,8 @@ export function DataManagement() {
         {activeTab === 'import' && (
           <ImportTab people={people} accounts={d} />
         )}
+
+        {activeTab === 'backup' && <BackupTab />}
       </div>
     </div>
   )

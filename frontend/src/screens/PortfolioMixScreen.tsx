@@ -51,8 +51,8 @@ export function PortfolioMixScreen() {
   const { timeline }      = useSimulationStore()
   const { activeScenario} = useScenarioStore()
 
-  const latestSnap  = timeline?.years.at(-1)
-  const actual: AccountBreakdown = latestSnap ? computeBreakdown(latestSnap.accounts) : EMPTY_BD
+  const currentSnap = timeline?.years?.[0]
+  const actual: AccountBreakdown = currentSnap ? computeBreakdown(currentSnap.accounts) : EMPTY_BD
   const total = Math.max(1, (Object.values(actual) as number[]).reduce((a,b)=>a+Math.max(0,b),0))
 
   // Default target = current allocation

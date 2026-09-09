@@ -300,6 +300,71 @@ function ScenarioSliders({ scenarioPath }: { scenarioPath: string }) {
 // (Historical backtest moved to Timeline screen — Chart/Table/Backtest tabs)
 
 
+// ── Emergency Fund panel ──────────────────────────────────────────────────────
+
+interface EmergencyFundData {
+  total_liquid_cash: number; monthly_expenses: number; months_covered: number
+  target_months: number; amber_months: number; status: 'adequate' | 'amber' | 'critical'
+  recommended_top_up: number; liquid_accounts: Record<string, number>; warnings: string[]
+}
+
+function EmergencyFundPanel({ scenarioPath }: { scenarioPath: string }) {
+  const { data, isLoading, isError } = useQuery<EmergencyFundData>({
+    queryKey: ['emergency-fund', scenarioPath],
+    queryFn: () => apiClient.get(`/retirement/emergency-fund?scenario_path=${encodeURIComponent(scenarioPath)}`).then(r => r.data),
+    staleTime: 60_000,
+  })
+
+  if (isLoading || isError || !data) return null
+
+  const statusColour = { adequate: '#2dbd7e', amber: '#d4a843', critical: '#e05252' }[data.status]
+  const pct = Math.min(100, (data.months_covered / Math.max(1, data.target_months)) * 100)
+
+  return (
+    <Panel title="Emergency Fund" badge={data.status.toUpperCase()} accentColour={statusColour} defaultOpen={data.status !== 'adequate'}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: statusColour }}>
+            {fmt(data.total_liquid_cash)}
+          </div>
+          <div style={{ fontSize: 11, color: '#8fa3b8' }}>liquid cash on hand</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#e8edf2' }}>
+            {data.months_covered.toFixed(1)} / {data.target_months.toFixed(0)} months
+          </div>
+          <div style={{ fontSize: 11, color: '#8fa3b8' }}>
+            of {fmt(data.monthly_expenses)}/mo expenses covered
+          </div>
+        </div>
+        {data.recommended_top_up > 0 && (
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#d4a843' }}>
+              {fmt(data.recommended_top_up)}
+            </div>
+            <div style={{ fontSize: 11, color: '#8fa3b8' }}>recommended top-up</div>
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 12, height: 6, borderRadius: 4, background: '#1d2f47', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: statusColour, borderRadius: 4, transition: 'width 0.3s' }} />
+      </div>
+      {data.warnings.map((w, i) => (
+        <div key={i} style={{ marginTop: 10, fontSize: 12, color: statusColour }}>⚠ {w}</div>
+      ))}
+      {Object.keys(data.liquid_accounts).length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {Object.entries(data.liquid_accounts).map(([id, val]) => (
+            <span key={id} style={{ background: '#1d2f4788', color: '#8fa3b8', borderRadius: 4, padding: '2px 8px', fontSize: 10 }}>
+              {id}: {fmt(val)}
+            </span>
+          ))}
+        </div>
+      )}
+    </Panel>
+  )
+}
+
 // ── MC Insights panel ─────────────────────────────────────────────────────────
 
 interface MCInsight {
@@ -318,9 +383,9 @@ function MCInsightsPanel({ scenarioPath, timeline, monteCarlo }: {
 }) {
   if (!monteCarlo) return null
 
-  const latestSnap    = timeline?.years?.at(-1)
+  const currentSnap   = timeline?.years?.[0]
   const fireYear      = timeline?.fire_year
-  const currentNW     = latestSnap?.total_net_worth ?? 0
+  const currentNW     = currentSnap?.total_net_worth ?? 0
   const currentYear   = new Date().getFullYear()
   const yearsToFire   = fireYear ? fireYear - currentYear : undefined
 
@@ -526,15 +591,15 @@ export function Dashboard() {
   const { activeScenarioPath } = useConfigStore()
   const scenarioName = activeScenarioPath.split('/').pop()?.replace('.yaml', '') ?? 'base'
 
-  const latestSnap  = timeline?.years.at(-1)
+  const currentSnap = timeline?.years?.[0]
   const fireYear    = timeline?.fire_year
   const currentYear = new Date().getFullYear()
   const yearsToFire = fireYear ? fireYear - currentYear : null
   const mcProb      = monteCarlo ? `${(monteCarlo.prob_fire * 100).toFixed(0)}%` : '—'
 
   // FIRE target from scenario (approximated from first snapshot's fire_coverage)
-  const fireTarget = latestSnap && latestSnap.fire_coverage > 0
-    ? latestSnap.total_net_worth / latestSnap.fire_coverage
+  const fireTarget = currentSnap && currentSnap.fire_coverage > 0
+    ? currentSnap.total_net_worth / currentSnap.fire_coverage
     : null
 
   return (
@@ -548,8 +613,8 @@ export function Dashboard() {
         ) : (
           <>
             <KpiCard label="Current Net Worth"
-                     value={latestSnap ? fmt(latestSnap.total_net_worth) : '—'}
-                     sub={latestSnap ? `as of ${latestSnap.year}` : 'Run a simulation'}
+                     value={currentSnap ? fmt(currentSnap.total_net_worth) : '—'}
+                     sub={currentSnap ? `as of ${currentSnap.year}` : 'Run a simulation'}
                      accent="teal" />
             <KpiCard label="FIRE Year"
                      value={fireYear ? String(fireYear) : '—'}
@@ -569,7 +634,7 @@ export function Dashboard() {
 
       {/* Milestone cards (below KPIs, always visible when simulation run) */}
       <MilestoneCards
-        nw={latestSnap?.total_net_worth ?? null}
+        nw={currentSnap?.total_net_worth ?? null}
         fireYear={fireYear ?? null}
         fireTarget={fireTarget}
         timeline={timeline}
@@ -592,6 +657,9 @@ export function Dashboard() {
         )}
       </div>
 
+      {/* Emergency fund status */}
+      <EmergencyFundPanel scenarioPath={activeScenarioPath} />
+
       {/* MC Plan Insights */}
       <MCInsightsPanel scenarioPath={activeScenarioPath} timeline={timeline} monteCarlo={monteCarlo} />
 
@@ -601,7 +669,7 @@ export function Dashboard() {
       {/* Planning coach alerts */}
       <PlanningCoachPanel
         scenarioPath={activeScenarioPath}
-        nw={latestSnap?.total_net_worth ?? null}
+        nw={currentSnap?.total_net_worth ?? null}
         fireTarget={fireTarget}
         fireYear={fireYear ?? null}
       />
