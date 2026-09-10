@@ -3,10 +3,14 @@
  */
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+} from 'recharts'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useScenarioStore } from '../store/scenarioStore'
 import { useConfigStore } from '../store/configStore'
+import { useSimulationStore } from '../store/simulationStore'
 import { apiClient } from '../api/client'
 import type { AccountBreakdown } from '../types'
 
@@ -42,6 +46,28 @@ function computeBreakdownFromCurrentNetWorth(bd: Record<string, { name: string; 
   return out
 }
 
+// The projection engine's own per-year account snapshots use richer
+// account_type strings (ISA, cash_ISA, SIPP, workplace_DC, property,
+// mortgage, ...) rather than the simple category field the current-net-worth
+// endpoint returns — bucket those into the same four categories for the
+// over-time charts.
+const TIMELINE_INV = new Set(['ISA', 'cash_ISA', 'LISA', 'GIA'])
+const TIMELINE_PEN = new Set(['SIPP', 'workplace_DC', 'DB'])
+
+interface YearMix { year: number; total: number; investments: number; pensions: number; property: number; savings: number }
+
+function bucketTimelineYear(year: number, accounts: Record<string, { account_type: string; value: number }>, totalNetWorth: number): YearMix {
+  const mix: YearMix = { year, total: totalNetWorth, investments: 0, pensions: 0, property: 0, savings: 0 }
+  for (const a of Object.values(accounts)) {
+    const v = a.value
+    if (TIMELINE_INV.has(a.account_type))       mix.investments += v
+    else if (TIMELINE_PEN.has(a.account_type))  mix.pensions    += v
+    else if (a.account_type === 'property' || a.account_type === 'mortgage') mix.property += v
+    else                                         mix.savings     += v
+  }
+  return mix
+}
+
 const BUCKETS = [
   { key:'investments_total' as keyof AccountBreakdown, label:'ISA / Investments', color:TEAL },
   { key:'pensions_total'    as keyof AccountBreakdown, label:'Pension',            color:GOLD },
@@ -53,6 +79,7 @@ const BUCKETS = [
 export function PortfolioMixScreen() {
   const { activeScenario} = useScenarioStore()
   const { activeScenarioPath } = useConfigStore()
+  const { timeline } = useSimulationStore()
 
   // True "as of today" allocation — raw balances, no simulated growth.
   // Deliberately not timeline.years[0]: that engine snapshot already has a
@@ -66,6 +93,17 @@ export function PortfolioMixScreen() {
 
   const actual: AccountBreakdown = currentNW ? computeBreakdownFromCurrentNetWorth(currentNW.breakdown) : EMPTY_BD
   const total = Math.max(1, (Object.values(actual) as number[]).reduce((a,b)=>a+Math.max(0,b),0))
+
+  // Portfolio mix over time — this IS a legitimate use of the projection
+  // timeline's per-year figures (unlike "current" net worth elsewhere,
+  // these are explicitly projected future years, not a stand-in for today).
+  const yearMix: YearMix[] = useMemo(() => {
+    if (!timeline?.years?.length) return []
+    return timeline.years.map((y: any) => bucketTimelineYear(y.year, y.accounts ?? {}, y.total_net_worth))
+  }, [timeline])
+
+  const [selectedYearIdx, setSelectedYearIdx] = useState(0)
+  const selectedYear = yearMix[selectedYearIdx]
 
   // Default target = current allocation
   const defaultTarget = useMemo(() => ({
@@ -161,6 +199,94 @@ export function PortfolioMixScreen() {
           </div>
         </div>
       </div>
+
+      {/* Portfolio over time: total value line + mix breakdown + year slider */}
+      {yearMix.length > 1 && (
+        <div style={{ background:'#162236', borderRadius:12, padding:'18px 20px',
+                      border:'1px solid rgba(255,255,255,0.07)', marginBottom:16 }}>
+          <h3 style={{ color:'#8fa3b8', fontSize:11, fontWeight:600,
+                       textTransform:'uppercase', letterSpacing:'0.06em', margin:'0 0 14px' }}>
+            Portfolio Over Time <span style={{ textTransform: 'none', fontWeight: 400 }}>— projected, not current</span>
+          </h3>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:18 }}>
+            <div>
+              <div style={{ color:'#8b949e', fontSize:10, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                Total Net Worth
+              </div>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={yearMix} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1d2f47" />
+                  <XAxis dataKey="year" tick={{ fontSize: 10, fill: '#8fa3b8' }} />
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 10, fill: '#8fa3b8' }} width={50} />
+                  <Tooltip formatter={(v: number) => [fmt(v), 'Total']} labelFormatter={(y) => `Year ${y}`} contentStyle={tipStyle} />
+                  <Line type="monotone" dataKey="total" stroke={TEAL} strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div>
+              <div style={{ color:'#8b949e', fontSize:10, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                Portfolio Mix
+              </div>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={yearMix} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1d2f47" />
+                  <XAxis dataKey="year" tick={{ fontSize: 10, fill: '#8fa3b8' }} />
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 10, fill: '#8fa3b8' }} width={50} />
+                  <Tooltip formatter={(v: number) => [fmt(v)]} labelFormatter={(y) => `Year ${y}`} contentStyle={tipStyle} />
+                  <Area type="monotone" dataKey="investments" stackId="1" stroke={TEAL} fill={TEAL} fillOpacity={0.6} name="Investments" />
+                  <Area type="monotone" dataKey="pensions"    stackId="1" stroke={GOLD} fill={GOLD} fillOpacity={0.6} name="Pension" />
+                  <Area type="monotone" dataKey="property"    stackId="1" stroke={GREEN} fill={GREEN} fillOpacity={0.6} name="Property" />
+                  <Area type="monotone" dataKey="savings"     stackId="1" stroke={PURP} fill={PURP} fillOpacity={0.6} name="Savings" />
+                  <Legend wrapperStyle={{ fontSize: 10, color: '#8fa3b8' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Year slider — snapshot values at a chosen projected year */}
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+              <label style={{ color:'#8fa3b8', fontSize:11, textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                Snapshot at year
+              </label>
+              <span style={{ color:TEAL, fontFamily:'DM Mono, monospace', fontSize:16, fontWeight:700 }}>
+                {selectedYear?.year}
+              </span>
+            </div>
+            <input
+              type="range" min={0} max={yearMix.length - 1} step={1} value={selectedYearIdx}
+              onChange={e => setSelectedYearIdx(Number(e.target.value))}
+              style={{ width:'100%', accentColor:TEAL, cursor:'pointer' }}
+            />
+            {selectedYear && (
+              <div style={{ display:'flex', gap:20, flexWrap:'wrap', marginTop:12 }}>
+                <div>
+                  <div style={{ color:'#8b949e', fontSize:10 }}>Total</div>
+                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:14, fontWeight:700 }}>{fmt(selectedYear.total)}</div>
+                </div>
+                <div>
+                  <div style={{ color:TEAL, fontSize:10 }}>Investments</div>
+                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:13 }}>{fmt(Math.max(0, selectedYear.investments))}</div>
+                </div>
+                <div>
+                  <div style={{ color:GOLD, fontSize:10 }}>Pension</div>
+                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:13 }}>{fmt(Math.max(0, selectedYear.pensions))}</div>
+                </div>
+                <div>
+                  <div style={{ color:GREEN, fontSize:10 }}>Property</div>
+                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:13 }}>{fmt(Math.max(0, selectedYear.property))}</div>
+                </div>
+                <div>
+                  <div style={{ color:PURP, fontSize:10 }}>Savings</div>
+                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:13 }}>{fmt(Math.max(0, selectedYear.savings))}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Target allocation sliders */}
       <div style={{ background:'#162236', borderRadius:12, padding:'18px 20px',
