@@ -4,25 +4,35 @@
 # ============================================================================
 # HA Supervisor writes add-on options to /data/options.json.
 # This script reads them with Python (no bashio dependency needed),
-# writes a runtime lifeledger_config.yaml, and starts uvicorn.
+# writes a runtime lifeledger_config.yaml, seeds the persistent data
+# directory on first run only, and starts uvicorn.
+#
+# IMPORTANT — this is the ONLY copy of this script. The Dockerfile COPYs it
+# in rather than embedding a duplicate heredoc. A previous version of the
+# Dockerfile had its own separately-maintained copy that silently drifted
+# out of sync with this file (missing fixes made here never actually
+# shipped) — never reintroduce that duplication.
 # ============================================================================
 
 set -euo pipefail
 
 APP_DIR="/app"
-CONFIG_DIR="/config"       # HA bind-mounts /config here (map: config:rw)
-DATA_DIR="/data"           # HA internal add-on data directory
+CONFIG_DIR="/config"       # HA bind-mounts /config here (map: config:rw) —
+                            # this is the ONLY thing that survives a version
+                            # update (a plain container restart also keeps
+                            # the container's own filesystem, but any update
+                            # or reinstall rebuilds the image and discards
+                            # everything NOT under this mount).
+DATA_DIR="/data"           # HA internal add-on data directory (options.json only)
 OPTIONS_FILE="${DATA_DIR}/options.json"
 
-CONFIG_FILE="${CONFIG_DIR}/lifeledger_config.yaml"
-LOG_FILE="${CONFIG_DIR}/lifeledger.log"
-DB_FILE="${CONFIG_DIR}/lifeledger.db"
+CONFIG_FILE="${CONFIG_DIR}/config/lifeledger_config.yaml"
+LOG_FILE="${CONFIG_DIR}/logs/lifeledger.log"
+DB_FILE="${CONFIG_DIR}/data/lifeledger.db"
 
 echo "[LifeLedger] Add-on starting..."
 
 # ── Read options from /data/options.json ──────────────────────────────────────
-# HA Supervisor writes this file from the options the user sets in the UI.
-# We use Python to extract values so we don't need bashio.
 read_option() {
     local key="$1"
     local default="$2"
@@ -64,20 +74,36 @@ fi
 
 echo "[LifeLedger] log_level=${LOG_LEVEL}  currency=${BASE_CURRENCY}  MC_sims=${MC_SIMS}"
 
-# ── Create directories in /config (persisted across restarts) ─────────────────
+# ── Create the persistent data layout under /config ───────────────────────────
+# This mirrors EXACTLY the project_root-relative paths every backend API
+# route module already expects (data/scenarios, data/checkpoints, etc.) —
+# see backend/main.py's LIFELEDGER_DATA_ROOT handling. Do not rename these
+# without also checking every route module that resolves scenario_path,
+# backup paths, etc. relative to app.state.project_root.
 mkdir -p \
-    "${CONFIG_DIR}/scenarios" \
-    "${CONFIG_DIR}/scenarios/templates" \
-    "${CONFIG_DIR}/checkpoints" \
-    "${CONFIG_DIR}/exports"
+    "${CONFIG_DIR}/config" \
+    "${CONFIG_DIR}/logs" \
+    "${CONFIG_DIR}/data/scenarios/templates" \
+    "${CONFIG_DIR}/data/checkpoints" \
+    "${CONFIG_DIR}/data/comments" \
+    "${CONFIG_DIR}/data/reports_output" \
+    "${CONFIG_DIR}/data/backups"
 
-# ── Copy bundled scenario templates if not already present ───────────────────
-TEMPLATES_SRC="${APP_DIR}/data/scenarios/templates"
-TEMPLATES_DST="${CONFIG_DIR}/scenarios/templates"
-if [ -d "${TEMPLATES_SRC}" ]; then
-    for f in "${TEMPLATES_SRC}"/*.yaml; do
+# ── Seed the persistent scenario data on FIRST RUN ONLY ───────────────────────
+# Never overwrite an existing base.yaml — that would silently discard real
+# user data on every restart/update, which is exactly the bug this whole
+# rewrite exists to fix. Only copy the image's shipped default if the
+# persistent copy doesn't exist yet (i.e. this is truly a fresh install).
+SCENARIOS_SRC="${APP_DIR}/data/scenarios"
+SCENARIOS_DST="${CONFIG_DIR}/data/scenarios"
+if [ ! -f "${SCENARIOS_DST}/base.yaml" ] && [ -f "${SCENARIOS_SRC}/base.yaml" ]; then
+    cp "${SCENARIOS_SRC}/base.yaml" "${SCENARIOS_DST}/base.yaml"
+    echo "[LifeLedger] First run: seeded ${SCENARIOS_DST}/base.yaml from the shipped default."
+fi
+if [ -d "${SCENARIOS_SRC}/templates" ]; then
+    for f in "${SCENARIOS_SRC}/templates"/*.yaml; do
         [ -f "${f}" ] || continue
-        dst="${TEMPLATES_DST}/$(basename "${f}")"
+        dst="${SCENARIOS_DST}/templates/$(basename "${f}")"
         if [ ! -f "${dst}" ]; then
             cp "${f}" "${dst}"
             echo "[LifeLedger] Installed template: $(basename "${f}")"
@@ -93,7 +119,6 @@ cat > "${CONFIG_FILE}" << YAML_EOF
 
 app:
   name: "LifeLedger"
-  version: "1.0.0"
   base_currency: "${BASE_CURRENCY}"
   log_level: "${LOG_LEVEL}"
   log_file: "${LOG_FILE}"
@@ -135,25 +160,34 @@ drive:
   folder_name: "LifeLedger"
   conflict_resolution: "prompt"
 
-database:
-  path: "${DB_FILE}"
-  cache_market_prices: true
-  price_staleness_hours: 24
-
 engine:
   income_auto_adds_to_networth: false
   checkpoint_boundary: true
 
-# Paths — point the app at /config so user data persists across restarts
-paths:
-  scenarios: "${CONFIG_DIR}/scenarios"
-  checkpoints: "${CONFIG_DIR}/checkpoints"
-  exports: "${CONFIG_DIR}/exports"
+backup:
+  include_paths:
+    - "config"
+    - "data/scenarios"
+    - "data/checkpoints"
+    - "data/comments"
+    - "data/reports_output"
+  include_database: true
+  include_api_keys_in_export: false
+  max_backups_retained: 10
+  backup_dir: "data/backups"
+  enforce_version_match: false
 YAML_EOF
 
 echo "[LifeLedger] Config written to ${CONFIG_FILE}"
 
 # ── Environment ───────────────────────────────────────────────────────────────
+# LIFELEDGER_DATA_ROOT is the one that matters: backend/main.py uses it as
+# app.state.project_root, which every API route module already resolves
+# scenario/checkpoint/comment/backup/db paths relative to — this single
+# variable redirects ALL of that to the persistent volume with no changes
+# needed anywhere else. LIFELEDGER_CONFIG/DB/LOG are kept for direct
+# reference/debugging but the app itself only reads LIFELEDGER_DATA_ROOT.
+export LIFELEDGER_DATA_ROOT="${CONFIG_DIR}"
 export LIFELEDGER_CONFIG="${CONFIG_FILE}"
 export LIFELEDGER_DB="${DB_FILE}"
 export LIFELEDGER_LOG="${LOG_FILE}"

@@ -178,9 +178,29 @@ def create_app() -> FastAPI:
         Stores all shared state on app.state. Failures are logged but do not
         prevent the server from starting, to allow partial operation.
         """
-        # Determine project root (two levels up from this file: backend/main.py)
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Determine project root (two levels up from this file: backend/main.py).
+        # This is also used as the base for ALL user data (scenarios,
+        # checkpoints, comments, backups, the SQLite db) via
+        # app.state.project_root, read by every API route module. Under the
+        # HA add-on, LIFELEDGER_DATA_ROOT points at the Supervisor-managed
+        # persistent volume (/config) instead of the code's own directory
+        # inside the container image — without this, every one of those
+        # data files would live inside the ephemeral container filesystem
+        # and be silently wiped on every version update (a real incident:
+        # confirmed via the container's own logs still showing the
+        # pre-fix pinned-argument bug after a version bump that should
+        # have carried a code fix — same root cause as this one, a path
+        # that looked persistent but wasn't). code_root is kept separate
+        # and always code-relative for the one thing that must NOT be
+        # redirected: tax_profiles.yaml, a static reference file shipped
+        # with the app, never user-edited, and never seeded into the data
+        # volume.
+        code_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_root = os.environ.get("LIFELEDGER_DATA_ROOT") or code_root
         app.state.project_root = project_root
+        app.state.code_root = code_root
+        if project_root != code_root:
+            logger.info("startup: user data root is %s (code root is %s)", project_root, code_root)
 
         # ── Load config ───────────────────────────────────────────────────────
         config_path = os.path.join(project_root, "config", "lifeledger_config.yaml")
@@ -206,7 +226,9 @@ def create_app() -> FastAPI:
             app.state.config = AppConfig()
 
         # ── Load tax profiles ─────────────────────────────────────────────────
-        tax_profiles_path = os.path.join(project_root, "config", "tax_profiles.yaml")
+        # Deliberately code_root, not project_root: this is static reference
+        # data shipped with the app, not user data — see the note above.
+        tax_profiles_path = os.path.join(code_root, "config", "tax_profiles.yaml")
         try:
             from backend.persistence.yaml_serialiser import load_tax_profiles_from_file
 
