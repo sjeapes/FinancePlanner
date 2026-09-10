@@ -65,6 +65,7 @@ interface FireStatus {
   explicit_target_net_worth: number
   fire_number: number
   current_net_worth: number
+  primary_residence_excluded: number
   progress_pct: number
   fire_year: number | null
   years_to_fire: number | null
@@ -74,11 +75,15 @@ interface FireStatus {
   warnings: string[]
 }
 
-const FIRE_TYPE_INFO: Record<string, { label: string; blurb: string }> = {
-  lean_fire: { label: 'Lean FIRE', blurb: 'A frugal number — covers essentials with little slack.' },
-  fire:      { label: 'FIRE',      blurb: 'A comfortable, standard target using your usual spending.' },
-  fat_fire:  { label: 'Fat FIRE',  blurb: 'A generous number with plenty of room for extras and buffer.' },
-  coast_fire:{ label: 'Coast FIRE',blurb: "Enough invested now that growth alone gets you there — you don't need to save more." },
+// Each type is a different lifestyle target, not just a label — switching
+// type rescales the suggested expenses so the previewed number actually
+// changes. Coast FIRE is handled separately: it doesn't scale expenses at
+// all, it discounts the standard FIRE number back from retirement age.
+const FIRE_TYPE_INFO: Record<string, { label: string; blurb: string; expenseMultiplier: number }> = {
+  lean_fire: { label: 'Lean FIRE', blurb: 'A frugal number — covers essentials with little slack.', expenseMultiplier: 0.7 },
+  fire:      { label: 'FIRE',      blurb: 'A comfortable, standard target using your usual spending.', expenseMultiplier: 1.0 },
+  fat_fire:  { label: 'Fat FIRE',  blurb: 'A generous number with plenty of room for extras and buffer.', expenseMultiplier: 1.4 },
+  coast_fire:{ label: 'Coast FIRE',blurb: "How much you need invested now so growth alone (no more saving) gets you to a standard FIRE number by retirement.", expenseMultiplier: 1.0 },
 }
 
 export function FireTab() {
@@ -149,7 +154,8 @@ export function FireTab() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 14 }}>
                 <KPI label="FIRE Number" value={fmt(data.fire_number)}
                      sub={`${FIRE_TYPE_INFO[data.fire_type]?.label ?? data.fire_type} · ${(data.swr * 100).toFixed(1)}% SWR`} />
-                <KPI label="Current Net Worth" value={fmt(data.current_net_worth)} accent={GREEN} />
+                <KPI label="Investable Net Worth" value={fmt(data.current_net_worth)} accent={GREEN}
+                     sub={data.primary_residence_excluded > 0 ? 'excludes your home' : undefined} />
                 <KPI label="Progress" value={`${data.progress_pct.toFixed(0)}%`} accent={data.progress_pct >= 100 ? GREEN : TEAL}
                      sub={data.progress_pct >= 100 ? 'Target reached today' : undefined} />
                 <KPI label="Projected FIRE Year" value={data.fire_year ? String(data.fire_year) : '—'}
@@ -233,7 +239,17 @@ export function FireTab() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setFireType(key)}
+                  onClick={() => {
+                    setFireType(key)
+                    // Rescale the expenses field to this type's baseline so
+                    // switching types actually changes the previewed number
+                    // — without this, every type shares whatever figure was
+                    // typed in and the preview never moves.
+                    const baseline = data.suggested_annual_expenses ?? Number(expenses) ?? 0
+                    if (baseline > 0) {
+                      setExpenses(String(Math.round(baseline * info.expenseMultiplier)))
+                    }
+                  }}
                   style={{
                     ...chipStyle,
                     background: fireType === key ? `${TEAL}22` : 'transparent',
@@ -252,9 +268,14 @@ export function FireTab() {
 
           {Number(expenses) > 0 && Number(swrPct) > 0 && (
             <div style={{ color: '#e8edf2', fontSize: 13, marginBottom: 16 }}>
-              → This implies a FIRE number of <strong style={{ fontFamily: 'DM Mono, monospace', color: TEAL }}>
+              → This implies a standard FIRE number of <strong style={{ fontFamily: 'DM Mono, monospace', color: TEAL }}>
                 {fmt(Number(expenses) / (Number(swrPct) / 100))}
               </strong>
+              {fireType === 'coast_fire' && (
+                <> — but Coast FIRE's actual number is that figure discounted back from your
+                  {data.retirement_year ? ` retirement year (${data.retirement_year})` : ' retirement year'} at
+                  an assumed growth rate, so it'll usually be noticeably lower. Save to see the real Coast number.</>
+              )}
             </div>
           )}
 

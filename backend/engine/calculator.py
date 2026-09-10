@@ -57,11 +57,26 @@ class CurrentNetWorthBreakdown:
     @param total_savings      Sum of savings account current_value.
     @param total_investments  Sum of investment account total_value().
     @param total_pensions     Sum of pension fund current_value.
-    @param total_property     Sum of property current_value.
+    @param total_property     Sum of ALL property current_value, including
+                               the primary residence — this is what general
+                               net worth displays (Dashboard, Portfolio Mix)
+                               should use.
+    @param primary_residence_value Sum of property current_value for
+                               properties identified as a primary residence
+                               (property_type == 'residential' and no rental
+                               income) — a subset of total_property, not
+                               additional to it.
     @param total_mortgages    Sum of mortgage current_balance (a liability).
     @param total_assets       savings + investments + pensions + property.
     @param total_liabilities  total_mortgages.
     @param total_net_worth    total_assets - total_liabilities.
+    @param total_net_worth_investable total_net_worth with the primary
+                               residence backed out of both assets and (if
+                               it carries the mortgage) liabilities — use
+                               this for FIRE progress, since a home you live
+                               in isn't a source of retirement spending
+                               unless sold or downsized. General net worth
+                               displays should use total_net_worth instead.
     @param breakdown          {account_id: {name, category, value}} for
                                pie/breakdown charts — includes every asset
                                category, so property is never silently
@@ -71,11 +86,34 @@ class CurrentNetWorthBreakdown:
     total_investments: float = 0.0
     total_pensions: float = 0.0
     total_property: float = 0.0
+    primary_residence_value: float = 0.0
     total_mortgages: float = 0.0
     total_assets: float = 0.0
     total_liabilities: float = 0.0
     total_net_worth: float = 0.0
+    total_net_worth_investable: float = 0.0
     breakdown: dict = field(default_factory=dict)
+
+
+def _is_primary_residence(prop) -> bool:
+    """
+    @brief Heuristic for identifying a primary residence among properties.
+
+    A property counts as a primary residence if its property_type is
+    'residential' AND it earns no rental income — the model's own docstring
+    notes rental_income_annual is "0 if primary residence", so a residential
+    property that DOES earn rental income (e.g. a room let out) is treated
+    as at least partly investable rather than excluded outright. Buy-to-let
+    and other non-residential property types are never excluded, regardless
+    of rental income, since they're investment property by definition.
+
+    @param prop  PropertyAsset to check.
+    @return      True if this property should be excluded from FIRE-relevant
+                 investable net worth.
+    """
+    ptype = str(getattr(prop, "property_type", "")).lower()
+    rental = float(getattr(prop, "rental_income_annual", 0.0) or 0.0)
+    return ptype == "residential" and rental == 0.0
 
 
 def compute_current_net_worth(scenario: Scenario) -> CurrentNetWorthBreakdown:
@@ -103,25 +141,48 @@ def compute_current_net_worth(scenario: Scenario) -> CurrentNetWorthBreakdown:
             out.total_pensions += val
             out.breakdown[p.id] = {"name": p.name, "category": "pension", "value": val}
 
+        primary_residence_mortgage_ids: set[str] = set()
         for p in scenario.properties:
             val = float(getattr(p, "current_value", 0.0))
             out.total_property += val
-            out.breakdown[p.id] = {"name": p.name, "category": "property", "value": val}
+            is_primary = _is_primary_residence(p)
+            if is_primary:
+                out.primary_residence_value += val
+                mort_id = getattr(p, "mortgage_id", None)
+                if mort_id:
+                    primary_residence_mortgage_ids.add(mort_id)
+            out.breakdown[p.id] = {
+                "name": p.name, "category": "property", "value": val,
+                "is_primary_residence": is_primary,
+            }
 
+        primary_residence_mortgage_balance = 0.0
         for m in scenario.mortgages:
             val = float(getattr(m, "current_balance", 0.0))
             out.total_mortgages += val
+            if m.id in primary_residence_mortgage_ids:
+                primary_residence_mortgage_balance += val
             out.breakdown[m.id] = {"name": m.name, "category": "mortgage_liability", "value": -val}
 
         out.total_assets = out.total_savings + out.total_investments + out.total_pensions + out.total_property
         out.total_liabilities = out.total_mortgages
         out.total_net_worth = out.total_assets - out.total_liabilities
 
+        # Investable net worth: back out the primary residence's value AND
+        # its mortgage (if any) — excluding the asset but leaving its debt
+        # in would understate investable net worth just as wrongly as
+        # including the house would overstate it.
+        out.total_net_worth_investable = (
+            out.total_net_worth - out.primary_residence_value + primary_residence_mortgage_balance
+        )
+
         logger.info(
             "compute_current_net_worth: assets=%.2f liabilities=%.2f net_worth=%.2f "
-            "(savings=%.2f investments=%.2f pensions=%.2f property=%.2f)",
-            out.total_assets, out.total_liabilities, out.total_net_worth,
+            "investable=%.2f (savings=%.2f investments=%.2f pensions=%.2f property=%.2f "
+            "primary_residence=%.2f)",
+            out.total_assets, out.total_liabilities, out.total_net_worth, out.total_net_worth_investable,
             out.total_savings, out.total_investments, out.total_pensions, out.total_property,
+            out.primary_residence_value,
         )
     except Exception as exc:
         logger.error("compute_current_net_worth: failed: %s", exc, exc_info=True)

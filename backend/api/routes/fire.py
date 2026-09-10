@@ -58,7 +58,14 @@ class FireStatusResponse(BaseModel):
     @param explicit_target_net_worth The literal target_net_worth stored in YAML (fallback only).
     @param fire_number           The number actually used: expenses / swr (or the explicit
                                   target if expenses/swr aren't set meaningfully).
-    @param current_net_worth     Today's net worth (first year of the timeline).
+    @param current_net_worth     Today's real net worth, EXCLUDING the primary residence —
+                                  a home you live in isn't a source of retirement spending
+                                  unless sold or downsized, so it's excluded from FIRE progress.
+                                  General net worth displays elsewhere in the app correctly
+                                  still include it; this figure deliberately does not.
+    @param primary_residence_excluded The primary residence value backed out of
+                                  current_net_worth, so the UI can show what was excluded
+                                  and why the figure differs from the Dashboard's net worth.
     @param progress_pct          current_net_worth / fire_number * 100, capped at 999.
     @param fire_year             Calendar year FIRE is first achieved in this scenario, if any.
     @param years_to_fire         fire_year - current year, if fire_year is set.
@@ -79,6 +86,7 @@ class FireStatusResponse(BaseModel):
     explicit_target_net_worth: float
     fire_number: float
     current_net_worth: float
+    primary_residence_excluded: float
     progress_pct: float
     fire_year: Optional[int]
     years_to_fire: Optional[int]
@@ -165,30 +173,21 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
         # use `current.total_net_worth` here: that's the year==start engine
         # snapshot, which already has a full year of growth/income/
         # contributions applied on top of the as-entered balances.
+        # For FIRE progress specifically, exclude the primary residence: a
+        # home you live in isn't a source of retirement spending unless
+        # sold or downsized, so counting it inflates progress toward a
+        # number meant to represent sustainable withdrawal capacity.
+        # General net worth displays (Dashboard, Portfolio Mix) correctly
+        # still include it via total_net_worth — only this FIRE-specific
+        # figure excludes it.
         current_nw_result = compute_current_net_worth(scenario)
-        current_nw = current_nw_result.total_net_worth
+        current_nw = current_nw_result.total_net_worth_investable
 
         has_fire_target = ft is not None
         fire_type = ft.fire_type if ft else "fire"
         swr = ft.swr if ft and ft.swr > 0 else 0.04
         annual_expenses_target = ft.annual_expenses_target if ft else 0.0
         explicit_target = ft.target_net_worth if ft else 0.0
-
-        # Prefer expenses/swr when meaningfully set; otherwise fall back to the
-        # explicit target_net_worth (mirrors FIRETarget.implied_target's own logic).
-        if ft and annual_expenses_target > 0:
-            fire_number = annual_expenses_target / swr
-        elif explicit_target > 0:
-            fire_number = explicit_target
-        else:
-            fire_number = 0.0
-            warnings.append("No FIRE target set yet — enter your target annual expenses to get a number.")
-
-        progress_pct = min(999.0, (current_nw / fire_number * 100.0)) if fire_number > 0 else 0.0
-
-        years_to_fire = None
-        if result.fire_year is not None:
-            years_to_fire = result.fire_year - current.year
 
         retirement_year = None
         if scenario.people:
@@ -198,6 +197,51 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
                 logger.warning("fire_status: could not compute retirement_year: %s", exc)
         else:
             warnings.append("No people configured on this scenario — retirement year unknown.")
+
+        # Prefer expenses/swr when meaningfully set; otherwise fall back to the
+        # explicit target_net_worth (mirrors FIRETarget.implied_target's own logic).
+        if ft and annual_expenses_target > 0:
+            standard_fire_number = annual_expenses_target / swr
+        elif explicit_target > 0:
+            standard_fire_number = explicit_target
+        else:
+            standard_fire_number = 0.0
+            warnings.append("No FIRE target set yet — enter your target annual expenses to get a number.")
+
+        if fire_type == "coast_fire":
+            # Coast FIRE is NOT expenses/swr — it's a fundamentally different
+            # question: "how much do I need invested TODAY that, with zero
+            # further contributions, will grow on its own to the standard
+            # FIRE number by my retirement age?" That's the standard number
+            # discounted back from retirement_year to today at an assumed
+            # growth rate. Treating it as expenses/swr (as every other type
+            # does) would make coast_fire produce the exact same number as
+            # 'fire' whenever expenses/swr match — which defeats the point
+            # of having it as a distinct type at all.
+            growth_rate = float(config.raw.get("engine", {}).get("default_growth_rate", 0.07)) if config.raw else 0.07
+            years_to_retirement = (retirement_year - current.year) if retirement_year is not None else None
+            if standard_fire_number > 0 and years_to_retirement is not None and years_to_retirement > 0:
+                fire_number = standard_fire_number / ((1.0 + growth_rate) ** years_to_retirement)
+            else:
+                fire_number = standard_fire_number
+                warnings.append(
+                    "Coast FIRE needs a known retirement year to discount back from — "
+                    "showing the standard FIRE number instead."
+                )
+        else:
+            fire_number = standard_fire_number
+
+        progress_pct = min(999.0, (current_nw / fire_number * 100.0)) if fire_number > 0 else 0.0
+
+        if current_nw_result.primary_residence_value > 0:
+            warnings.append(
+                f"Excludes your primary residence (£{current_nw_result.primary_residence_value:,.0f}) — "
+                "a home you live in isn't a source of retirement spending unless sold or downsized."
+            )
+
+        years_to_fire = None
+        if result.fire_year is not None:
+            years_to_fire = result.fire_year - current.year
 
         suggested_annual_expenses = None
         if retirement_year is not None:
@@ -217,6 +261,7 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
             explicit_target_net_worth=explicit_target,
             fire_number=fire_number,
             current_net_worth=current_nw,
+            primary_residence_excluded=current_nw_result.primary_residence_value,
             progress_pct=progress_pct,
             fire_year=result.fire_year,
             years_to_fire=years_to_fire,
