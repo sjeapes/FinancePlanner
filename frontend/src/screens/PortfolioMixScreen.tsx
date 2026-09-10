@@ -5,7 +5,6 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { PageHeader } from '../components/layout/PageHeader'
-import { useSimulationStore } from '../store/simulationStore'
 import { useScenarioStore } from '../store/scenarioStore'
 import { useConfigStore } from '../store/configStore'
 import { apiClient } from '../api/client'
@@ -52,7 +51,6 @@ const BUCKETS = [
 ]
 
 export function PortfolioMixScreen() {
-  const { timeline }      = useSimulationStore()
   const { activeScenario} = useScenarioStore()
   const { activeScenarioPath } = useConfigStore()
 

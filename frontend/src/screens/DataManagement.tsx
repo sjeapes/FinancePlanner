@@ -829,7 +829,7 @@ function KeyLifeDatesPanel({ people }: { people: any[] }) {
   return (
     <div style={{ background: '#0f1b2d', border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 8, padding: 14, marginBottom: 16 }}>
-      <div style={{ ...sectionHeadStyle, marginTop: 0 }}>Key Life Dates</div>
+      <div style={{ color: '#e8edf2', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Key Life Dates</div>
       <p style={{ color: '#8fa3b8', fontSize: 12, marginTop: -6, marginBottom: 10 }}>
         Retirement and end-of-plan dates come from each person's <strong>People</strong> record
         (retirement age / life expectancy). Any life event below can link to these dates instead
