@@ -37,6 +37,97 @@ from backend.engine.tax_engine import TaxResult, calculate_net_income
 logger = logging.getLogger(__name__)
 
 
+# ── Current (today's) net worth — raw balances, no simulation ────────────────
+
+@dataclass
+class CurrentNetWorthBreakdown:
+    """
+    @brief Today's actual net worth, computed directly from account balances
+           as entered — no growth, income, or contributions simulated.
+
+    This is deliberately separate from the projection timeline: a
+    TimelineResult's year==start snapshot has already had a full year of
+    growth/income/contributions/mortgage amortisation applied to it (needed
+    so that year is a meaningful *projected* year), which makes it the wrong
+    number to show as "current net worth" — that would silently add a
+    phantom extra year of compounding on top of balances the user already
+    entered as current. This function is the one source of truth for "what
+    do I actually have right now".
+
+    @param total_savings      Sum of savings account current_value.
+    @param total_investments  Sum of investment account total_value().
+    @param total_pensions     Sum of pension fund current_value.
+    @param total_property     Sum of property current_value.
+    @param total_mortgages    Sum of mortgage current_balance (a liability).
+    @param total_assets       savings + investments + pensions + property.
+    @param total_liabilities  total_mortgages.
+    @param total_net_worth    total_assets - total_liabilities.
+    @param breakdown          {account_id: {name, category, value}} for
+                               pie/breakdown charts — includes every asset
+                               category, so property is never silently
+                               dropped from a portfolio-mix view.
+    """
+    total_savings: float = 0.0
+    total_investments: float = 0.0
+    total_pensions: float = 0.0
+    total_property: float = 0.0
+    total_mortgages: float = 0.0
+    total_assets: float = 0.0
+    total_liabilities: float = 0.0
+    total_net_worth: float = 0.0
+    breakdown: dict = field(default_factory=dict)
+
+
+def compute_current_net_worth(scenario: Scenario) -> CurrentNetWorthBreakdown:
+    """
+    @brief Compute today's net worth directly from as-entered account
+           balances, with no simulation applied.
+
+    @param scenario  Scenario to read balances from.
+    @return          CurrentNetWorthBreakdown.
+    """
+    out = CurrentNetWorthBreakdown()
+    try:
+        for acc in scenario.savings_accounts:
+            val = float(getattr(acc, "current_value", 0.0))
+            out.total_savings += val
+            out.breakdown[acc.id] = {"name": acc.name, "category": "savings", "value": val}
+
+        for acc in scenario.investment_accounts:
+            val = float(acc.total_value()) if hasattr(acc, "total_value") else float(getattr(acc, "current_value", 0.0))
+            out.total_investments += val
+            out.breakdown[acc.id] = {"name": acc.name, "category": "investment", "value": val}
+
+        for p in scenario.pension_funds:
+            val = float(getattr(p, "current_value", 0.0))
+            out.total_pensions += val
+            out.breakdown[p.id] = {"name": p.name, "category": "pension", "value": val}
+
+        for p in scenario.properties:
+            val = float(getattr(p, "current_value", 0.0))
+            out.total_property += val
+            out.breakdown[p.id] = {"name": p.name, "category": "property", "value": val}
+
+        for m in scenario.mortgages:
+            val = float(getattr(m, "current_balance", 0.0))
+            out.total_mortgages += val
+            out.breakdown[m.id] = {"name": m.name, "category": "mortgage_liability", "value": -val}
+
+        out.total_assets = out.total_savings + out.total_investments + out.total_pensions + out.total_property
+        out.total_liabilities = out.total_mortgages
+        out.total_net_worth = out.total_assets - out.total_liabilities
+
+        logger.info(
+            "compute_current_net_worth: assets=%.2f liabilities=%.2f net_worth=%.2f "
+            "(savings=%.2f investments=%.2f pensions=%.2f property=%.2f)",
+            out.total_assets, out.total_liabilities, out.total_net_worth,
+            out.total_savings, out.total_investments, out.total_pensions, out.total_property,
+        )
+    except Exception as exc:
+        logger.error("compute_current_net_worth: failed: %s", exc, exc_info=True)
+    return out
+
+
 # ── Year snapshot ─────────────────────────────────────────────────────────────
 
 @dataclass
@@ -605,8 +696,8 @@ class ProjectionEngine:
                 if snap.fire_achieved and result.fire_year is None:
                     result.fire_year = year
                     logger.info(
-                        "ProjectionEngine: FIRE achieved in %d (net worth £%,.0f)",
-                        year, snap.total_net_worth,
+                        "ProjectionEngine: FIRE achieved in %d (net worth £%s)",
+                        year, f"{snap.total_net_worth:,.0f}",
                     )
 
                 # Retirement income coverage: total income vs retirement expenses
@@ -621,18 +712,17 @@ class ProjectionEngine:
             result.years.append(snap)
 
             logger.debug(
-                "Year %d: assets=£%,.0f liabilities=£%,.0f "
-                "net_worth=£%,.0f income=£%,.0f",
-                year, snap.total_assets, snap.total_liabilities,
-                snap.total_net_worth, snap.total_gross_income,
+                "Year %d: assets=£%s liabilities=£%s net_worth=£%s income=£%s",
+                year, f"{snap.total_assets:,.0f}", f"{snap.total_liabilities:,.0f}",
+                f"{snap.total_net_worth:,.0f}", f"{snap.total_gross_income:,.0f}",
             )
 
         logger.info(
             "ProjectionEngine.project: '%s' complete — %d years, "
-            "final net worth £%,.0f, FIRE year %s",
+            "final net worth £%s, FIRE year %s",
             scenario.name,
             len(result.years),
-            result.years[-1].total_net_worth if result.years else 0,
+            f"{result.years[-1].total_net_worth:,.0f}" if result.years else "0",
             result.fire_year or "not reached",
         )
         return result

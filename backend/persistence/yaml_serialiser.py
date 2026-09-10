@@ -701,10 +701,25 @@ def parse_app_config(d: dict) -> AppConfig:
         proj = d.get("projection", {})
         inf = d.get("inflation", {})
         mc = d.get("monte_carlo", {})
+        # Default projection_start_year to the real current year rather than
+        # a hardcoded literal — a fixed default silently goes stale every
+        # year it isn't manually bumped, offsetting every projected year's
+        # label from the actual calendar year. An explicit start_year in the
+        # YAML always wins; this only affects the unconfigured default.
+        default_start_year = date.today().year
+        configured_start = proj.get("start_year")
+        start_year = _int(configured_start) if configured_start is not None else default_start_year
+        if configured_start is not None and start_year < default_start_year:
+            logger.warning(
+                "parse_app_config: projection.start_year=%d in config is in the past "
+                "(current year is %d) — projected years will be labelled behind the "
+                "real calendar unless this is intentional.",
+                start_year, default_start_year,
+            )
         return AppConfig(
             base_currency=str(app.get("base_currency", "GBP")),
             log_level=str(app.get("log_level", "INFO")),
-            projection_start_year=_int(proj.get("start_year", 2025)),
+            projection_start_year=start_year,
             projection_end_year=_int(proj.get("end_year", 2075)),
             inflation_base_rate=_float(inf.get("base_rate", 0.025)),
             monte_carlo_simulations=_int(mc.get("simulations", 1000)),

@@ -14,6 +14,11 @@ app:
   log_to_file: true
 
 # ── Projection settings ──────────────────────────────────────
+# NOTE: under the HA add-on, this whole file is regenerated on every
+# restart from the add-on's options (see lifeledger/run.sh), which now
+# auto-corrects start_year forward if it's fallen behind the real
+# calendar year. The value below only matters for standalone/dev runs
+# outside the add-on — bump it yourself if you're running this way.
 projection:
   start_year: 2025
   end_year: 2075

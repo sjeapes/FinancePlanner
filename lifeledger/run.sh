@@ -47,6 +47,21 @@ MC_SEED=$(read_option monte_carlo_seed 42)
 DRIVE_ENABLED=$(read_option drive_sync_enabled false)
 DRIVE_INTERVAL=$(read_option drive_sync_interval_minutes 5)
 
+# ── Guard against a stale projection_start_year ───────────────────────────────
+# The add-on option ships with a fixed default (see config.json) and, once
+# HA Supervisor bakes it into options.json at install time, never advances on
+# its own — every year that passes without the user manually bumping it in
+# the Configuration tab silently shifts every projected year's label behind
+# the real calendar, and makes "year 0" of any projection a stale year rather
+# than "now". If the configured value has fallen behind the current year,
+# override it and say so in the log, rather than quietly projecting from the
+# past. An explicitly future-dated value is left alone.
+CURRENT_YEAR=$(date +%Y)
+if [ "${PROJ_START}" -lt "${CURRENT_YEAR}" ]; then
+    echo "[LifeLedger] WARNING: projection_start_year option (${PROJ_START}) is behind the current year (${CURRENT_YEAR}) — using ${CURRENT_YEAR} instead. Update the option in the add-on's Configuration tab to silence this."
+    PROJ_START="${CURRENT_YEAR}"
+fi
+
 echo "[LifeLedger] log_level=${LOG_LEVEL}  currency=${BASE_CURRENCY}  MC_sims=${MC_SIMS}"
 
 # ── Create directories in /config (persisted across restarts) ─────────────────

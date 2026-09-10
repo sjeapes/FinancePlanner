@@ -35,7 +35,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.engine.calculator import ProjectionEngine
+from backend.engine.calculator import ProjectionEngine, compute_current_net_worth
 from backend.engine.scenario_engine import load_scenario_for_projection
 from backend.persistence.yaml_serialiser import dump_yaml, load_yaml
 
@@ -62,7 +62,7 @@ class FireStatusResponse(BaseModel):
     @param progress_pct          current_net_worth / fire_number * 100, capped at 999.
     @param fire_year             Calendar year FIRE is first achieved in this scenario, if any.
     @param years_to_fire         fire_year - current year, if fire_year is set.
-    @param current_fire_coverage Today's fire_coverage ratio from the engine.
+    @param current_fire_coverage Today's real net worth divided by the FIRE number.
     @param retirement_year       The primary person's planned retirement year, if known.
     @param suggested_annual_expenses A data-driven suggestion for annual_expenses_target,
                                       taken from the scenario's own projected expenses in
@@ -161,6 +161,13 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
         current = result.years[0]
         ft = scenario.fire_target
 
+        # Today's real net worth — raw balances, no simulated growth. Do NOT
+        # use `current.total_net_worth` here: that's the year==start engine
+        # snapshot, which already has a full year of growth/income/
+        # contributions applied on top of the as-entered balances.
+        current_nw_result = compute_current_net_worth(scenario)
+        current_nw = current_nw_result.total_net_worth
+
         has_fire_target = ft is not None
         fire_type = ft.fire_type if ft else "fire"
         swr = ft.swr if ft and ft.swr > 0 else 0.04
@@ -177,7 +184,6 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
             fire_number = 0.0
             warnings.append("No FIRE target set yet — enter your target annual expenses to get a number.")
 
-        current_nw = current.total_net_worth
         progress_pct = min(999.0, (current_nw / fire_number * 100.0)) if fire_number > 0 else 0.0
 
         years_to_fire = None
@@ -214,7 +220,7 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
             progress_pct=progress_pct,
             fire_year=result.fire_year,
             years_to_fire=years_to_fire,
-            current_fire_coverage=current.fire_coverage,
+            current_fire_coverage=(current_nw / fire_number) if fire_number > 0 else 0.0,
             retirement_year=retirement_year,
             suggested_annual_expenses=suggested_annual_expenses,
             warnings=warnings,

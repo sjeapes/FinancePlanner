@@ -2,11 +2,14 @@
  * PortfolioMixScreen.tsx — asset allocation, target mix and rebalancing
  */
 import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useSimulationStore } from '../store/simulationStore'
 import { useScenarioStore } from '../store/scenarioStore'
-import type { AccountBreakdown, AccountSnapshotOut } from '../types'
+import { useConfigStore } from '../store/configStore'
+import { apiClient } from '../api/client'
+import type { AccountBreakdown } from '../types'
 
 const TEAL='#0e9aad', GOLD='#d4a843', GREEN='#2dbd7e', PURP='#a78bfa', SLATE='#8fa3b8'
 const RED='#e05252'
@@ -23,20 +26,21 @@ const EMPTY_BD: AccountBreakdown = {
   savings_total:0, investments_total:0, pensions_total:0,
   property_net:0, cash_total:0,
 }
-const INV = new Set(['ISA','cash_ISA','LISA'])
-const PEN = new Set(['SIPP','workplace_DC','DB'])
 
-function computeBreakdown(accs: Record<string,AccountSnapshotOut>): AccountBreakdown {
-  const bd = {...EMPTY_BD}
-  for (const a of Object.values(accs)) {
-    const v=a.value, t=a.account_type
-    if (INV.has(t))                  bd.investments_total += v
-    else if (PEN.has(t))             bd.pensions_total    += v
-    else if (t==='property'||t==='mortgage') bd.property_net += v
-    else if (t==='GIA')              bd.savings_total     += v
-    else                             bd.cash_total        += v
+function computeBreakdownFromCurrentNetWorth(bd: Record<string, { name: string; category: string; value: number }>): AccountBreakdown {
+  const out = { ...EMPTY_BD }
+  for (const item of Object.values(bd)) {
+    const v = item.value
+    switch (item.category) {
+      case 'investment':          out.investments_total += v; break
+      case 'pension':             out.pensions_total    += v; break
+      case 'property':           out.property_net       += v; break
+      case 'mortgage_liability':  out.property_net       += v; break  // already negative
+      case 'savings':             out.cash_total         += v; break
+      default:                    out.savings_total      += v
+    }
   }
-  return bd
+  return out
 }
 
 const BUCKETS = [
@@ -50,9 +54,19 @@ const BUCKETS = [
 export function PortfolioMixScreen() {
   const { timeline }      = useSimulationStore()
   const { activeScenario} = useScenarioStore()
+  const { activeScenarioPath } = useConfigStore()
 
-  const currentSnap = timeline?.years?.[0]
-  const actual: AccountBreakdown = currentSnap ? computeBreakdown(currentSnap.accounts) : EMPTY_BD
+  // True "as of today" allocation — raw balances, no simulated growth.
+  // Deliberately not timeline.years[0]: that engine snapshot already has a
+  // full year of growth/contributions baked in, which distorts "current"
+  // allocation. See backend networth.py.
+  const { data: currentNW } = useQuery<{ breakdown: Record<string, { name: string; category: string; value: number }> }>({
+    queryKey: ['networth-current', activeScenarioPath],
+    queryFn: () => apiClient.get('/networth/current', { params: { scenario_path: activeScenarioPath } }).then(r => r.data),
+    staleTime: 30_000,
+  })
+
+  const actual: AccountBreakdown = currentNW ? computeBreakdownFromCurrentNetWorth(currentNW.breakdown) : EMPTY_BD
   const total = Math.max(1, (Object.values(actual) as number[]).reduce((a,b)=>a+Math.max(0,b),0))
 
   // Default target = current allocation

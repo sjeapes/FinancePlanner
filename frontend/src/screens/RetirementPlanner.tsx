@@ -510,7 +510,14 @@ export function RetirementPlanner() {
   const { activeScenarioPath } = useConfigStore()
 
   const fireYear  = timeline?.fire_year
-  const latestNW  = timeline?.years?.[0]?.total_net_worth
+  // True "as of today" net worth — raw balances, no simulated growth.
+  // Deliberately not timeline.years[0]: see backend networth.py.
+  const { data: currentNetWorth } = useQuery<{ total_net_worth: number }>({
+    queryKey: ['networth-current', activeScenarioPath],
+    queryFn: () => apiClient.get('/networth/current', { params: { scenario_path: activeScenarioPath } }).then(r => r.data),
+    staleTime: 30_000,
+  })
+  const latestNW = currentNetWorth?.total_net_worth
 
   return (
     <div>

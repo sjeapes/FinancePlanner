@@ -785,7 +785,7 @@ class AppConfig:
     """
     base_currency: str = "GBP"
     log_level: str = "INFO"
-    projection_start_year: int = 2025
+    projection_start_year: int = field(default_factory=lambda: date.today().year)
     projection_end_year: int = 2075
     inflation_base_rate: float = 0.025
     monte_carlo_simulations: int = 1000

@@ -376,16 +376,15 @@ interface MCInsightResult {
   insights: MCInsight[]; overall_health: string; summary: string
 }
 
-function MCInsightsPanel({ scenarioPath, timeline, monteCarlo }: {
+function MCInsightsPanel({ scenarioPath, timeline, monteCarlo, currentNW }: {
   scenarioPath: string
   timeline: any
   monteCarlo: any
+  currentNW: number | null
 }) {
   if (!monteCarlo) return null
 
-  const currentSnap   = timeline?.years?.[0]
   const fireYear      = timeline?.fire_year
-  const currentNW     = currentSnap?.total_net_worth ?? 0
   const currentYear   = new Date().getFullYear()
   const yearsToFire   = fireYear ? fireYear - currentYear : undefined
 
@@ -591,13 +590,27 @@ export function Dashboard() {
   const { activeScenarioPath } = useConfigStore()
   const scenarioName = activeScenarioPath.split('/').pop()?.replace('.yaml', '') ?? 'base'
 
+  // True "as of today" net worth — raw balances, no simulated growth.
+  // Deliberately NOT timeline.years[0]: that engine snapshot already has a
+  // full year of growth/income/contributions baked in, which overstates
+  // "current" by roughly a year of compounding. See backend networth.py.
+  const { data: currentNetWorth } = useQuery<{ total_net_worth: number }>({
+    queryKey: ['networth-current', activeScenarioPath],
+    queryFn: () => apiClient.get('/networth/current', { params: { scenario_path: activeScenarioPath } }).then(r => r.data),
+    staleTime: 30_000,
+  })
+  const trueCurrentNW = currentNetWorth?.total_net_worth ?? null
+
   const currentSnap = timeline?.years?.[0]
   const fireYear    = timeline?.fire_year
   const currentYear = new Date().getFullYear()
   const yearsToFire = fireYear ? fireYear - currentYear : null
   const mcProb      = monteCarlo ? `${(monteCarlo.prob_fire * 100).toFixed(0)}%` : '—'
 
-  // FIRE target from scenario (approximated from first snapshot's fire_coverage)
+  // FIRE target from scenario (approximated from first snapshot's fire_coverage).
+  // This is a ratio back-solve for the (constant) target itself, so using the
+  // engine's year-0 net worth/coverage pair here is fine even though that
+  // pair isn't "today's" real net worth — the target cancels out correctly.
   const fireTarget = currentSnap && currentSnap.fire_coverage > 0
     ? currentSnap.total_net_worth / currentSnap.fire_coverage
     : null
@@ -613,8 +626,8 @@ export function Dashboard() {
         ) : (
           <>
             <KpiCard label="Current Net Worth"
-                     value={currentSnap ? fmt(currentSnap.total_net_worth) : '—'}
-                     sub={currentSnap ? `as of ${currentSnap.year}` : 'Run a simulation'}
+                     value={trueCurrentNW != null ? fmt(trueCurrentNW) : '—'}
+                     sub="today's actual balances"
                      accent="teal" />
             <KpiCard label="FIRE Year"
                      value={fireYear ? String(fireYear) : '—'}
@@ -634,7 +647,7 @@ export function Dashboard() {
 
       {/* Milestone cards (below KPIs, always visible when simulation run) */}
       <MilestoneCards
-        nw={currentSnap?.total_net_worth ?? null}
+        nw={trueCurrentNW}
         fireYear={fireYear ?? null}
         fireTarget={fireTarget}
         timeline={timeline}
@@ -661,7 +674,7 @@ export function Dashboard() {
       <EmergencyFundPanel scenarioPath={activeScenarioPath} />
 
       {/* MC Plan Insights */}
-      <MCInsightsPanel scenarioPath={activeScenarioPath} timeline={timeline} monteCarlo={monteCarlo} />
+      <MCInsightsPanel scenarioPath={activeScenarioPath} timeline={timeline} monteCarlo={monteCarlo} currentNW={trueCurrentNW} />
 
       {/* Price staleness alert */}
       <PriceStalePanel scenarioPath={activeScenarioPath} />
@@ -669,7 +682,7 @@ export function Dashboard() {
       {/* Planning coach alerts */}
       <PlanningCoachPanel
         scenarioPath={activeScenarioPath}
-        nw={currentSnap?.total_net_worth ?? null}
+        nw={trueCurrentNW}
         fireTarget={fireTarget}
         fireYear={fireYear ?? null}
       />

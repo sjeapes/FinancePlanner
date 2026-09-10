@@ -433,6 +433,14 @@ def _register_routers(app: FastAPI) -> None:
         except Exception as exc:
             logger.error("startup: failed to register FIRE router: %s", exc, exc_info=True)
 
+        # ── True current (as-of-today) net worth ──────────────────────────────
+        try:
+            from backend.api.routes import networth as networth_routes
+            app.include_router(networth_routes.router, prefix="/api", tags=["networth"])
+            logger.info("startup: networth router registered")
+        except Exception as exc:
+            logger.error("startup: failed to register networth router: %s", exc, exc_info=True)
+
         # ── Phase 4: Retirement planning ─────────────────────────────────────
         try:
             from backend.api.routes import retirement

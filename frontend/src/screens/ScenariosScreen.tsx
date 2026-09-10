@@ -760,8 +760,15 @@ export function AnnualReviewPanel({ scenarioPath, timeline, monteCarlo }: {
     staleTime: 30_000,
   })
 
-  const currentSnap = timeline?.years?.[0]
-  const currentNW  = currentSnap?.total_net_worth ?? 0
+  // True "as of today" net worth — raw balances, no simulated growth.
+  // Deliberately not timeline.years[0]: see backend networth.py. Checkpoint
+  // "actual" net worth must be today's real figure, not a year-inflated one.
+  const { data: currentNetWorth } = useQuery<{ total_net_worth: number }>({
+    queryKey: ['networth-current', scenarioPath],
+    queryFn: () => apiClient.get('/networth/current', { params: { scenario_path: scenarioPath } }).then(r => r.data),
+    staleTime: 30_000,
+  })
+  const currentNW  = currentNetWorth?.total_net_worth ?? 0
   const fireYear   = timeline?.fire_year
 
   async function saveSnapshot() {
