@@ -11,6 +11,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../client'
+import { invalidateScenarioDerivedQueries } from '../queryInvalidation'
 
 // ── Response shape ─────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ export function useUpdateAccount(type: string) {
       return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY })
+      invalidateScenarioDerivedQueries(queryClient)
     },
   })
 }
@@ -99,7 +100,7 @@ export function useAddAccount(type: string) {
       return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY })
+      invalidateScenarioDerivedQueries(queryClient)
     },
   })
 }
@@ -115,7 +116,7 @@ export function useDeleteAccount(type: string) {
       await apiClient.delete(`/accounts/${type}/${id}`)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY })
+      invalidateScenarioDerivedQueries(queryClient)
     },
   })
 }

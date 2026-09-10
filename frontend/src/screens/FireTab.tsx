@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useConfigStore } from '../store/configStore'
 import { apiClient } from '../api/client'
+import { invalidateScenarioDerivedQueries } from '../api/queryInvalidation'
 
 const TEAL = '#0e9aad', GOLD = '#d4a843', GREEN = '#2dbd7e', RED = '#e05252'
 
@@ -120,7 +121,7 @@ export function FireTab() {
         swr: Number(swrPct) / 100,
         fire_type: fireType,
       })
-      await qc.invalidateQueries({ queryKey: ['fire-status', activeScenarioPath] })
+      await invalidateScenarioDerivedQueries(qc)
       setEditing(false)
     } catch (e: any) {
       setSaveError(e?.response?.data?.detail ?? e.message ?? 'Save failed')

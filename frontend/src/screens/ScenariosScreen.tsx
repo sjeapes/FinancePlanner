@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSimulationStore } from '../store/simulationStore'
 import { useConfigStore } from '../store/configStore'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { GitBranch, Plus, X, Check, TrendingUp } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ScenarioOverlay } from '../components/graph/ScenarioOverlay'
@@ -303,7 +303,7 @@ function ComparisonTable({ rows, colors }: ComparisonTableProps) {
 export function ScenariosScreen() {
   // Selected paths for comparison — always start with base
   const [selectedPaths, setSelectedPaths] = useState<string[]>([BASE_PATH])
-  const { timeline, monteCarlo }  = useSimulationStore()
+  const { timeline, monteCarlo, dataChangedAt, lastRunAt }  = useSimulationStore()
   const { activeScenarioPath }    = useConfigStore()
   // Full simulation data per path (for ScenarioOverlay chart)
   const [simulationData, setSimulationData] = useState<Record<string, YearSnapshot[]>>({})
@@ -332,6 +332,53 @@ export function ScenariosScreen() {
       })
     }
   }, [simulationData, loadingPaths])
+
+  // Unconditional variant for forced refreshes: fetchSimulation's cache
+  // check (`if (simulationData[path] ...) return`) reads simulationData
+  // from its own closure, which is still the pre-refresh value in the same
+  // tick a refresh is triggered — clearing state first wouldn't be visible
+  // to that closure yet. This bypasses the check and always re-fetches,
+  // overwriting whatever's cached for that path once the request resolves.
+  const forceFetchSimulation = useCallback(async (path: string) => {
+    setLoadingPaths((prev) => new Set(prev).add(path))
+    try {
+      const res = await apiClient.post<{ years: YearSnapshot[] }>('/simulate', {
+        scenario_path: path,
+        include_breakdown: false,
+      })
+      setSimulationData((prev) => ({ ...prev, [path]: res.data.years }))
+    } catch (err) {
+      console.error('ScenariosScreen: forced simulation refresh failed for', path, err)
+    } finally {
+      setLoadingPaths((prev) => {
+        const next = new Set(prev)
+        next.delete(path)
+        return next
+      })
+    }
+  }, [])
+
+  const qc = useQueryClient()
+  const lastHandledDataChange = useRef<number | null>(null)
+  const isStale = !!dataChangedAt && (!lastRunAt || dataChangedAt > lastRunAt)
+
+  // When underlying scenario data changes (accounts, life events, FIRE
+  // target, etc. edited elsewhere), the per-path chart data cached in
+  // simulationData would otherwise never refetch — re-fetch every
+  // currently-selected path so the comparison chart doesn't keep showing
+  // figures computed from data that's since changed.
+  useEffect(() => {
+    if (!dataChangedAt) return
+    const t = dataChangedAt.getTime()
+    if (lastHandledDataChange.current === t) return
+    lastHandledDataChange.current = t
+    selectedPaths.forEach((p) => forceFetchSimulation(p))
+  }, [dataChangedAt, selectedPaths, forceFetchSimulation])
+
+  function handleRefresh() {
+    selectedPaths.forEach((p) => forceFetchSimulation(p))
+    qc.invalidateQueries({ queryKey: ['scenarios', 'compare_v2'] })
+  }
 
   // ── Path management ────────────────────────────────────────────────────────
   const addPath = useCallback((path: string) => {
@@ -371,6 +418,29 @@ export function ScenariosScreen() {
         title="Scenarios"
         subtitle="Compare financial futures side-by-side"
       />
+
+      {isStale && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#d4a84322', border: '1px solid #d4a84366', borderRadius: 8,
+          padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#d4a843',
+        }}>
+          <span>
+            Your data has changed since the last full simulation — the comparisons below have refreshed
+            automatically, but Monte Carlo probability and other projections elsewhere still reflect the old run.
+            Use "Run" in the top bar for a complete refresh.
+          </span>
+          <button
+            onClick={handleRefresh}
+            style={{
+              background: '#d4a843', color: '#1a1f2b', border: 'none', borderRadius: 6,
+              padding: '5px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, marginLeft: 12,
+            }}
+          >
+            Refresh charts
+          </button>
+        </div>
+      )}
 
       {/* ── Active scenarios ──────────────────────────────────────────────── */}
       <div
