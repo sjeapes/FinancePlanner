@@ -250,7 +250,6 @@ def update_fire_target(body: UpdateFireTargetRequest, request: Request) -> dict:
 
     try:
         raw = load_yaml(abs_path)
-        scenario_data = raw.get("scenario", raw)
 
         fire_target = {
             "target_net_worth": body.target_net_worth if body.target_net_worth is not None
@@ -259,13 +258,17 @@ def update_fire_target(body: UpdateFireTargetRequest, request: Request) -> dict:
             "swr": body.swr,
             "fire_type": body.fire_type,
         }
-        scenario_data["fire_target"] = fire_target
-
-        if "scenario" in raw:
-            raw["scenario"] = scenario_data
-            dump_yaml(raw, abs_path)
-        else:
-            dump_yaml(scenario_data, abs_path)
+        # fire_target always lives at the TOP level of the scenario file —
+        # parse_scenario() reads it via d.get("fire_target"), not from inside
+        # any nested 'scenario:' metadata block. Writing it into raw.get(
+        # "scenario", raw) (mirroring the pattern used for id/name/is_base)
+        # would bury it inside that metadata block on files that have one,
+        # so the write silently never lands where the reader looks — always
+        # set it directly on the raw dict itself, regardless of whether a
+        # nested 'scenario:' block exists alongside it.
+        raw["fire_target"] = fire_target
+        if not dump_yaml(raw, abs_path):
+            raise HTTPException(status_code=500, detail=f"Failed to write scenario file: {abs_path}")
 
         logger.info("update_fire_target: wrote fire_target %s to %s", fire_target, abs_path)
         return {"success": True, "fire_target": fire_target}
