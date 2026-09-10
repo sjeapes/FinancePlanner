@@ -63,8 +63,8 @@ def app_config():
 def timeline(base_scenario, app_config, tax_profiles):
     """Run the projection once for all tests."""
     from backend.engine.calculator import ProjectionEngine
-    engine = ProjectionEngine(base_scenario, app_config, tax_profiles)
-    return engine.run()
+    engine = ProjectionEngine(app_config, tax_profiles)
+    return engine.project(base_scenario)
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +243,18 @@ class TestMortgageEngine:
         from backend.engine.mortgage import MortgageEngine
         result = MortgageEngine(simple_mortgage_cfg).run()
         first = result.schedule[0]
-        assert abs(first.scheduled_payment - 999.63) < 0.50
+        # Standard UK repayment-mortgage formula, nominal monthly rate =
+        # annual_rate / 12 (the convention the engine itself uses —
+        # backend/engine/mortgage.py `_scheduled_payment`):
+        #   M = P * r(1+r)^n / ((1+r)^n - 1), P=200000, r=0.035/12, n=300
+        #   = £1001.25 (verified by direct calculation, not just re-reading
+        #   the engine's own output).
+        # The previous expected value here (999.63) didn't match this
+        # formula, nor the alternative true-monthly-compounding convention
+        # ((1.035)^(1/12)-1, which gives £995.37) — it appears to have been
+        # a rough manual estimate that was never checked against either
+        # standard formula.
+        assert abs(first.scheduled_payment - 1001.25) < 0.01
 
     def test_term_length(self, simple_mortgage_cfg):
         from backend.engine.mortgage import MortgageEngine
@@ -273,6 +284,39 @@ class TestMortgageEngine:
         r_base = MortgageEngine(base).run()
         r_op   = MortgageEngine(with_op).run()
         assert r_op.actual_term_months < r_base.actual_term_months
+
+    def test_overpayment_does_not_lower_future_payments(self):
+        """
+        Regression test for a real bug: the scheduled payment was being
+        recalculated every month from the current balance and remaining
+        term, so an overpayment's extra principal silently came back out as
+        a LOWER future payment instead of shortening the term — the loan
+        never actually paid off early. Confirmed by direct calculation: the
+        payment dropped from £1001.25 to £895.64 the month immediately
+        after a £20k lump sum, while actual_term_months stayed at exactly
+        300 (the full unshortened term) regardless of the overpayment.
+        The fix: only recalculate the scheduled payment when the interest
+        rate actually changes, matching how a real lender only re-quotes
+        your payment at a rate change, not every month.
+        """
+        from backend.engine.mortgage import MortgageConfig, MortgageEngine, RatePeriod, Overpayment
+        cfg = MortgageConfig(
+            mortgage_id="op", label="OP", property_id="h",
+            original_balance=200_000, start_date=date(2020, 1, 1), term_years=25,
+            annual_overpayment_cap_pct=0.0,
+            rate_periods=[RatePeriod(label="3.5%", annual_rate=0.035, start_date=date(2020, 1, 1))],
+            overpayments=[Overpayment(amount=20_000, overpayment_type="lump_sum", date=date(2022, 1, 1))],
+        )
+        result = MortgageEngine(cfg).run()
+        overpayment_row_idx = next(i for i, r in enumerate(result.schedule) if r.overpayment > 0)
+        payment_before = result.schedule[overpayment_row_idx - 1].scheduled_payment
+        payment_after = result.schedule[overpayment_row_idx + 1].scheduled_payment
+        assert payment_after == payment_before, (
+            f"Scheduled payment changed from £{payment_before} to £{payment_after} "
+            "after an overpayment with no rate change — overpayments must shorten "
+            "the term, not lower future payments."
+        )
+        assert result.actual_term_months < cfg.term_years * 12
 
     def test_rate_period_transition(self):
         from backend.engine.mortgage import MortgageConfig, MortgageEngine, RatePeriod

@@ -328,6 +328,18 @@ class MortgageEngine:
         period = 0
         payoff_date = current_date
 
+        # The scheduled payment is fixed once set and only ever recalculated
+        # when the interest rate actually changes (a genuine rate-period
+        # transition — the standard trigger real lenders use to re-quote a
+        # payment). It must NOT be recalculated every month from the current
+        # balance: doing so silently re-amortises any overpayment's extra
+        # principal back out as a lower future payment instead of letting it
+        # shorten the term, which defeats the entire point of overpaying and
+        # would misreport the mortgage's actual payoff date everywhere it
+        # feeds into net worth projections.
+        scheduled_payment = 0.0
+        last_rate: Optional[float] = None
+
         for month_idx in range(1, max_months + 2):
             if balance < self.BALANCE_ZERO_THRESHOLD:
                 payoff_date = current_date
@@ -349,10 +361,19 @@ class MortgageEngine:
             # Offset reduces the interest-bearing balance
             effective_balance = max(0.0, balance - offset)
 
-            # Scheduled payment recalculated at each rate change for repayment
-            scheduled_payment = self._scheduled_payment(
-                balance, annual_rate, max_months - (period - 1)
-            )
+            # Recalculate the scheduled payment only at the start, or when
+            # the rate has genuinely changed since the previous period —
+            # re-amortising over whatever term remains at that point, same
+            # as a lender re-quoting your payment when your fixed rate ends.
+            # Between rate changes, the payment stays fixed regardless of
+            # how much extra principal overpayments have paid down, so that
+            # paydown correctly shortens the term instead of lowering
+            # future payments.
+            if last_rate is None or annual_rate != last_rate:
+                scheduled_payment = self._scheduled_payment(
+                    balance, annual_rate, max_months - (period - 1)
+                )
+                last_rate = annual_rate
 
             # Interest on effective balance
             if self._cfg.repayment_type == "interest_only":

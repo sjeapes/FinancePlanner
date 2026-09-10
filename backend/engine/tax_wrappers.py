@@ -1020,7 +1020,7 @@ def load_tax_wrappers_config(path: str) -> TaxWrapperEngine:
 
     # Wrapper overrides
     overrides: dict[str, WrapperTreatment] = {}
-    for item in raw.get("wrapper_overrides", []):
+    for item in raw.get("wrapper_overrides", []) or []:
         wt_key = item.get("wrapper_type")
         if not wt_key:
             continue
@@ -1057,7 +1057,7 @@ def load_tax_wrappers_config(path: str) -> TaxWrapperEngine:
 
     # FX rates
     fx_rates: list[FXRate] = []
-    for item in raw.get("fx_rates", []):
+    for item in raw.get("fx_rates", []) or []:
         rd_raw = item.get("rate_date")
         rd = None
         if rd_raw:
