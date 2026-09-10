@@ -76,14 +76,23 @@ function Err({ msg }: { msg: string }) {
 }
 
 // ── Tab 1: Income Coverage ─────────────────────────────────────────────────────
+// Field names below match backend/api/routes/retirement.py's
+// IncomeCoverageReportOut/IncomeCoverageRowOut exactly — a previous version
+// of this tab used a different, older shape (rows/age/surplus_shortfall)
+// that the backend never actually returned, which threw on data.rows.filter(...)
+// being undefined and blanked the whole page on load (this tab is the
+// default active tab). Always check the actual Pydantic response model in
+// retirement.py before changing field references here again.
 
-interface CovRow {
-  year: number; age: number; total_income: number; total_expenses: number
-  coverage_ratio: number; surplus_shortfall: number; status: string
-  pension_drawdown: number; state_pension: number; rental_income: number
-}
-interface CovData { rows: CovRow[]; avg_coverage: number; years_below_target: number
-                    total_shortfall: number; total_surplus: number }
+interface IncomeSource { label: string; source_type: string; annual_gross: number
+                          is_taxable: boolean; person_id: string }
+interface CovRow { year: number; total_income: number; total_expenses: number
+                    coverage_ratio: number; surplus_deficit: number
+                    income_breakdown: IncomeSource[]; status: string; months_funded: number }
+interface CovData { years: CovRow[]; first_shortfall_year: number|null
+                     worst_coverage_year: number; worst_coverage_ratio: number
+                     avg_coverage_ratio: number; total_surplus: number
+                     total_shortfall: number; warnings: string[] }
 
 function IncomeCoverageTab({ path }: { path: string }) {
   const { data, isLoading, isError } = useQuery<CovData>({
@@ -95,32 +104,38 @@ function IncomeCoverageTab({ path }: { path: string }) {
   if (isLoading) return <Loading text="Analysing income coverage…" />
   if (isError || !data) return <Err msg="Failed to load income coverage. Run a simulation first." />
 
-  const chartData = data.rows.filter(r=>r.year % 2===0).map(r => ({
-    age: r.age,
+  const chartData = data.years.filter(r=>r.year % 2===0).map(r => ({
+    year: r.year,
     Income: Math.round(r.total_income),
     Expenses: Math.round(r.total_expenses),
-    Surplus: Math.max(0, r.surplus_shortfall),
-    Shortfall: Math.min(0, r.surplus_shortfall),
+    Surplus: Math.max(0, r.surplus_deficit),
+    Shortfall: Math.min(0, r.surplus_deficit),
   }))
 
-  const STATUS_COLOR: Record<string,string> = { green: GREEN, amber: GOLD, red: RED }
+  const STATUS_COLOR: Record<string,string> = { covered: GREEN, shortfall: RED, tight: GOLD }
+  const yearsBelowTarget = data.years.filter(r => r.coverage_ratio < 1).length
 
   return (
     <div>
+      {data.warnings.map((w,i) => (
+        <div key={i} style={{ color: GOLD, fontSize: 12, marginBottom: 10, background: `${GOLD}11`,
+                               borderRadius: 6, padding: '8px 12px' }}>⚠ {w}</div>
+      ))}
+
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }}>
-        <KPI label="Avg coverage ratio" value={`${(data.avg_coverage*100).toFixed(0)}%`}
-             accent={data.avg_coverage>=1 ? GREEN : data.avg_coverage>=0.8 ? GOLD : RED} />
-        <KPI label="Years below target" value={String(data.years_below_target)}
-             sub="< 100% coverage" accent={data.years_below_target===0 ? GREEN : RED} />
+        <KPI label="Avg coverage ratio" value={`${(data.avg_coverage_ratio*100).toFixed(0)}%`}
+             accent={data.avg_coverage_ratio>=1 ? GREEN : data.avg_coverage_ratio>=0.8 ? GOLD : RED} />
+        <KPI label="Years below target" value={String(yearsBelowTarget)}
+             sub="< 100% coverage" accent={yearsBelowTarget===0 ? GREEN : RED} />
         <KPI label="Total shortfall" value={data.total_shortfall>0 ? fmt(data.total_shortfall) : '£0'}
              accent={data.total_shortfall>0 ? RED : GREEN} />
         <KPI label="Total surplus" value={fmt(data.total_surplus)} accent={GREEN} />
       </div>
 
-      <Card title="Income vs Expenses by Age (£/yr)">
+      <Card title="Income vs Expenses by Year (£/yr)">
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} barGap={2}>
-            <XAxis dataKey="age" tick={{fill:'#8b949e',fontSize:9}} />
+            <XAxis dataKey="year" tick={{fill:'#8b949e',fontSize:9}} />
             <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fill:'#8b949e',fontSize:9}} />
             <Tooltip formatter={(v:number,n:string)=>[`£${v.toLocaleString()}`,n]} contentStyle={tipStyle} />
             <Legend wrapperStyle={{fontSize:11,color:'#8fa3b8'}} />
@@ -130,10 +145,10 @@ function IncomeCoverageTab({ path }: { path: string }) {
         </ResponsiveContainer>
       </Card>
 
-      <Card title="Surplus / Shortfall by Age">
+      <Card title="Surplus / Shortfall by Year">
         <ResponsiveContainer width="100%" height={140}>
           <BarChart data={chartData}>
-            <XAxis dataKey="age" tick={{fill:'#8b949e',fontSize:9}} />
+            <XAxis dataKey="year" tick={{fill:'#8b949e',fontSize:9}} />
             <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fill:'#8b949e',fontSize:9}} />
             <Tooltip formatter={(v:number)=>[`£${v.toLocaleString()}`, v>=0?'Surplus':'Shortfall']} contentStyle={tipStyle} />
             <ReferenceLine y={0} stroke="#30363d" />
@@ -148,7 +163,7 @@ function IncomeCoverageTab({ path }: { path: string }) {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead style={{ position:'sticky', top:0, background:'#162236' }}>
               <tr style={{ color:'#8b949e' }}>
-                {['Year','Age','Income','Expenses','Coverage','Surplus/Shortfall','Status'].map(h=>(
+                {['Year','Income','Expenses','Coverage','Surplus/Shortfall','Months Funded','Status'].map(h=>(
                   <th key={h} style={{ padding:'6px 8px', fontWeight:500,
                                        borderBottom:'1px solid #1d2f47', textAlign:'right',
                                        whiteSpace:'nowrap' }}>{h}</th>
@@ -156,10 +171,9 @@ function IncomeCoverageTab({ path }: { path: string }) {
               </tr>
             </thead>
             <tbody>
-              {data.rows.map(r=>(
+              {data.years.map(r=>(
                 <tr key={r.year} style={{ borderBottom:'1px solid #0f1b2d' }}>
                   <td style={{ padding:'5px 8px', textAlign:'right', color:TEAL, fontFamily:'DM Mono, monospace' }}>{r.year}</td>
-                  <td style={{ padding:'5px 8px', textAlign:'right', color:'#8fa3b8' }}>{r.age}</td>
                   <td style={{ padding:'5px 8px', textAlign:'right', fontFamily:'DM Mono, monospace', color:'#e8edf2' }}>{fmt(r.total_income)}</td>
                   <td style={{ padding:'5px 8px', textAlign:'right', fontFamily:'DM Mono, monospace', color:'#e8edf2' }}>{fmt(r.total_expenses)}</td>
                   <td style={{ padding:'5px 8px', textAlign:'right', fontFamily:'DM Mono, monospace',
@@ -167,8 +181,11 @@ function IncomeCoverageTab({ path }: { path: string }) {
                     {(r.coverage_ratio*100).toFixed(0)}%
                   </td>
                   <td style={{ padding:'5px 8px', textAlign:'right', fontFamily:'DM Mono, monospace',
-                               color: r.surplus_shortfall>=0?GREEN:RED }}>
-                    {r.surplus_shortfall>=0?'+':''}{fmt(r.surplus_shortfall)}
+                               color: r.surplus_deficit>=0?GREEN:RED }}>
+                    {r.surplus_deficit>=0?'+':''}{fmt(r.surplus_deficit)}
+                  </td>
+                  <td style={{ padding:'5px 8px', textAlign:'right', fontFamily:'DM Mono, monospace', color:'#8fa3b8' }}>
+                    {r.months_funded.toFixed(1)}
                   </td>
                   <td style={{ padding:'5px 8px', textAlign:'right' }}>
                     <span style={{ background:`${STATUS_COLOR[r.status]??'#8b949e'}22`,
@@ -189,11 +206,16 @@ function IncomeCoverageTab({ path }: { path: string }) {
 }
 
 // ── Tab 2: Drawdown Strategy ───────────────────────────────────────────────────
+// Backend compares exactly TWO named strategies (A vs B), not an N-strategy
+// array — matches DrawdownOrderResultOut in retirement.py.
 
-interface StrategyRow { strategy: string; total_tax: number; pot_at_death: number
-                        isa_exhausted_year: number|null; recommendation: string }
-interface DrawdownData { strategies: StrategyRow[]; recommended_strategy: string
-                         lifetime_tax_saving: number; notes: string }
+interface DrawdownYearRow { year: number; income_needed: number
+                             strategy_a_tax: number; strategy_b_tax: number; tax_saving: number }
+interface DrawdownData { strategy_a_id: string; strategy_a_label: string
+                          strategy_b_id: string; strategy_b_label: string
+                          year_rows: DrawdownYearRow[]
+                          lifetime_tax_a: number; lifetime_tax_b: number; lifetime_tax_saving: number
+                          recommended_strategy: string; recommendation_notes: string; warnings: string[] }
 
 function DrawdownTab({ path }: { path: string }) {
   const { data, isLoading, isError } = useQuery<DrawdownData>({
@@ -205,108 +227,70 @@ function DrawdownTab({ path }: { path: string }) {
   if (isLoading) return <Loading text="Optimising drawdown strategy…" />
   if (isError || !data) return <Err msg="Failed to load drawdown analysis. Ensure pension and ISA accounts are configured." />
 
-  const chartData = data.strategies.map(s => ({
-    name: s.strategy.replace('_first','').replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase()),
-    'Lifetime tax': Math.round(s.total_tax),
-    'Pot at death': Math.round(s.pot_at_death),
-    strategy: s.strategy,
+  const chartData = data.year_rows.map(r => ({
+    year: r.year,
+    [data.strategy_a_label]: Math.round(r.strategy_a_tax),
+    [data.strategy_b_label]: Math.round(r.strategy_b_tax),
   }))
 
-  const bestTax   = Math.min(...data.strategies.map(s=>s.total_tax))
-  const worstTax  = Math.max(...data.strategies.map(s=>s.total_tax))
-
-  const STRATEGY_COLORS: Record<string,string> = {
-    isa_first:'#0e9aad', sipp_first:'#d4a843', gia_first:'#a78bfa', optimised:'#2dbd7e'
-  }
+  const recommendedIsA = data.recommended_strategy === data.strategy_a_id
+  const recommendedLabel = recommendedIsA ? data.strategy_a_label : data.strategy_b_label
 
   return (
     <div>
-      {/* Recommended strategy banner */}
       <div style={{ background:`${GREEN}11`, border:`1px solid ${GREEN}44`, borderRadius:10,
                     padding:'14px 18px', marginBottom:16, display:'flex', alignItems:'center', gap:16 }}>
         <div>
           <div style={{ color:GREEN, fontWeight:700, fontSize:14 }}>
-            ✓ Recommended: {data.recommended_strategy.replace('_first','').replace('_',' ')
-              .replace(/\b\w/g,l=>l.toUpperCase())} Strategy
+            ✓ Recommended: {recommendedLabel} Strategy
           </div>
           <div style={{ color:'#8fa3b8', fontSize:12, marginTop:4 }}>
             Saves <span style={{ color:GREEN, fontFamily:'DM Mono, monospace', fontWeight:700 }}>
               {fmt(data.lifetime_tax_saving)}
-            </span> in lifetime income tax vs the worst strategy.
+            </span> in lifetime income tax vs the other strategy.
           </div>
         </div>
-        {data.notes && (
-          <div style={{ color:'#8fa3b8', fontSize:11, marginLeft:'auto', maxWidth:220, lineHeight:1.5 }}>
-            {data.notes}
+        {data.recommendation_notes && (
+          <div style={{ color:'#8fa3b8', fontSize:11, marginLeft:'auto', maxWidth:280, lineHeight:1.5 }}>
+            {data.recommendation_notes}
           </div>
         )}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
-        <Card title="Lifetime income tax by strategy">
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData} layout="vertical">
-              <XAxis type="number" tickFormatter={v=>`£${(v/1000).toFixed(0)}k`}
-                     tick={{fill:'#8b949e',fontSize:9}} />
-              <YAxis type="category" dataKey="name" tick={{fill:'#8fa3b8',fontSize:10}} width={80} />
-              <Tooltip formatter={(v:number)=>[fmt(v),'Tax']} contentStyle={tipStyle} />
-              <Bar dataKey="Lifetime tax" radius={[0,4,4,0]}>
-                {chartData.map((d,i)=>(
-                  <Cell key={i} fill={STRATEGY_COLORS[d.strategy]??TEAL} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
+      <Card title="Cumulative income tax by strategy, year by year">
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData}>
+            <XAxis dataKey="year" tick={{fill:'#8b949e',fontSize:9}} />
+            <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fill:'#8b949e',fontSize:9}} />
+            <Tooltip formatter={(v:number)=>[`£${v.toLocaleString()}`,'Tax']} contentStyle={tipStyle} />
+            <Legend wrapperStyle={{fontSize:11,color:'#8fa3b8'}} />
+            <Bar dataKey={data.strategy_a_label} fill={recommendedIsA?GREEN:TEAL} radius={[2,2,0,0]} />
+            <Bar dataKey={data.strategy_b_label} fill={recommendedIsA?TEAL:GREEN} radius={[2,2,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
 
-        <Card title="Pot remaining at death">
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData} layout="vertical">
-              <XAxis type="number" tickFormatter={v=>`£${(v/1000).toFixed(0)}k`}
-                     tick={{fill:'#8b949e',fontSize:9}} />
-              <YAxis type="category" dataKey="name" tick={{fill:'#8fa3b8',fontSize:10}} width={80} />
-              <Tooltip formatter={(v:number)=>[fmt(v),'Pot']} contentStyle={tipStyle} />
-              <Bar dataKey="Pot at death" radius={[0,4,4,0]}>
-                {chartData.map((d,i)=>(
-                  <Cell key={i} fill={STRATEGY_COLORS[d.strategy]??TEAL} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
-
-      {/* Strategy detail cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
-        {data.strategies.map(s => {
-          const col = STRATEGY_COLORS[s.strategy] ?? TEAL
-          const isRecommended = s.strategy === data.recommended_strategy
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12, marginTop:14 }}>
+        {[
+          { id: data.strategy_a_id, label: data.strategy_a_label, tax: data.lifetime_tax_a },
+          { id: data.strategy_b_id, label: data.strategy_b_label, tax: data.lifetime_tax_b },
+        ].map(s => {
+          const isRecommended = s.id === data.recommended_strategy
+          const col = isRecommended ? GREEN : TEAL
           return (
-            <div key={s.strategy} style={{ background:`${col}0d`, border:`1px solid ${col}${isRecommended?'88':'33'}`,
-                                            borderRadius:10, padding:'14px 16px' }}>
+            <div key={s.id} style={{ background:`${col}0d`, border:`1px solid ${col}${isRecommended?'88':'33'}`,
+                                      borderRadius:10, padding:'14px 16px' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                <div style={{ color:col, fontWeight:700, fontSize:12 }}>
-                  {s.strategy.replace('_first','').replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase())}
-                </div>
+                <div style={{ color:col, fontWeight:700, fontSize:12 }}>{s.label}</div>
                 {isRecommended && (
                   <span style={{ background:`${GREEN}22`, color:GREEN, border:`1px solid ${GREEN}44`,
                                   borderRadius:3, padding:'1px 7px', fontSize:9, fontWeight:700 }}>BEST</span>
                 )}
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, fontSize:11 }}>
-                <div>
-                  <div style={{ color:'#8b949e' }}>Lifetime tax</div>
-                  <div style={{ color:s.total_tax===bestTax?GREEN:s.total_tax===worstTax?RED:'#e8edf2',
-                                 fontFamily:'DM Mono, monospace', fontWeight:700 }}>{fmt(s.total_tax)}</div>
-                </div>
-                <div>
-                  <div style={{ color:'#8b949e' }}>Pot at death</div>
-                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace' }}>{fmt(s.pot_at_death)}</div>
-                </div>
+              <div style={{ color:'#8b949e', fontSize:11 }}>Lifetime income tax</div>
+              <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>
+                {fmt(s.tax)}
               </div>
-              {s.recommendation && (
-                <div style={{ color:'#8fa3b8', fontSize:10, marginTop:8, lineHeight:1.5 }}>{s.recommendation}</div>
-              )}
             </div>
           )
         })}
@@ -316,12 +300,21 @@ function DrawdownTab({ path }: { path: string }) {
 }
 
 // ── Tab 3: Annuity vs Drawdown ─────────────────────────────────────────────────
+// Backend returns exactly three named annuity options (level, inflation-linked,
+// joint life) per pension, not an arbitrary array — matches
+// AnnuityVsDrawdownOut in retirement.py. income_at_ages values are
+// CUMULATIVE totals by age, not the annual amount at that age.
 
-interface AnnuityOpt { label: string; type: string; annual_income: number
-                       break_even_age: number|null; income_at_80: number; income_at_90: number }
-interface AnnuityItem { person_name: string; pension_pot: number
-                        annuity_options: AnnuityOpt[]; drawdown_income: number
-                        drawdown_pot_at_80: number; drawdown_pot_at_90: number }
+interface DrawdownProjection { swr: number; fund_at_start: number; income_yr1: number
+                                income_at_ages: Record<string, number>; exhaustion_age: number|null }
+interface AnnuityOption { annuity_type: string; label: string; fund_at_conversion: number
+                           annual_income_yr1: number; inflation_rate: number; survivor_fraction: number
+                           guarantee_years: number; income_at_ages: Record<string, number>
+                           break_even_age: number|null }
+interface AnnuityItem { pension_id: string; conversion_age: number; fund_value: number
+                         drawdown: DrawdownProjection
+                         annuity_level: AnnuityOption; annuity_inflation: AnnuityOption; annuity_joint: AnnuityOption
+                         notes: string }
 
 function AnnuityTab({ path }: { path: string }) {
   const { data, isLoading, isError } = useQuery<AnnuityItem[]>({
@@ -335,88 +328,89 @@ function AnnuityTab({ path }: { path: string }) {
 
   return (
     <div>
-      {data.map(item => (
-        <div key={item.person_name}>
-          <div style={{ color:'#8fa3b8', fontSize:11, marginBottom:10 }}>
-            {item.person_name} — Pension pot: <span style={{ color:GOLD, fontFamily:'DM Mono, monospace', fontWeight:700 }}>{fmt(item.pension_pot)}</span>
-          </div>
+      {data.map(item => {
+        const options = [item.annuity_level, item.annuity_inflation, item.annuity_joint]
+        return (
+          <div key={item.pension_id} style={{ marginBottom: 24 }}>
+            <div style={{ color:'#8fa3b8', fontSize:11, marginBottom:10 }}>
+              {item.pension_id.replace(/_/g,' ')} — Fund at conversion (age {item.conversion_age}):{' '}
+              <span style={{ color:GOLD, fontFamily:'DM Mono, monospace', fontWeight:700 }}>{fmt(item.fund_value)}</span>
+            </div>
 
-          {/* Drawdown baseline */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
-            <KPI label="Drawdown income (4% SWR)" value={fmt(item.drawdown_income)+'/yr'} accent={TEAL} />
-            <KPI label="Pot remaining at 80"       value={fmt(item.drawdown_pot_at_80)}   accent={TEAL} />
-            <KPI label="Pot remaining at 90"       value={fmt(item.drawdown_pot_at_90)}   accent={TEAL} />
-          </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
+              <KPI label="Drawdown income (4% SWR), yr 1" value={fmt(item.drawdown.income_yr1)+'/yr'} accent={TEAL} />
+              <KPI label="Fund at start" value={fmt(item.drawdown.fund_at_start)} accent={TEAL} />
+              <KPI label="Fund exhaustion age" value={item.drawdown.exhaustion_age ? String(item.drawdown.exhaustion_age) : 'Never'} accent={TEAL} />
+            </div>
 
-          {/* Annuity options */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-            {item.annuity_options.map(opt => {
-              const col = opt.type==='level'?GOLD : opt.type==='inflation_linked'?GREEN : PURP
-              const betterThan4pct = opt.annual_income > item.drawdown_income
-              return (
-                <div key={opt.type} style={{ background:`${col}0d`, border:`1px solid ${col}44`,
-                                              borderRadius:10, padding:'14px 16px' }}>
-                  <div style={{ color:col, fontWeight:700, fontSize:12, marginBottom:10 }}>{opt.label}</div>
-                  <div style={{ fontSize:11, display:'flex', flexDirection:'column', gap:6 }}>
-                    <div>
-                      <div style={{ color:'#8b949e' }}>Annual income</div>
-                      <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:15 }}>
-                        {fmt(opt.annual_income)}/yr
-                        <span style={{ color:betterThan4pct?GREEN:RED, fontSize:9, marginLeft:6 }}>
-                          {betterThan4pct?'▲ beats SWR':'▼ below SWR'}
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color:'#8b949e' }}>Break-even age</div>
-                      <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace' }}>
-                        {opt.break_even_age ?? '—'}
-                      </div>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
+              {options.map(opt => {
+                const col = opt.annuity_type==='level' ? GOLD : opt.annuity_type==='inflation_linked' ? GREEN : PURP
+                const betterThan4pct = opt.annual_income_yr1 > item.drawdown.income_yr1
+                return (
+                  <div key={opt.annuity_type} style={{ background:`${col}0d`, border:`1px solid ${col}44`,
+                                                        borderRadius:10, padding:'14px 16px' }}>
+                    <div style={{ color:col, fontWeight:700, fontSize:12, marginBottom:10 }}>{opt.label}</div>
+                    <div style={{ fontSize:11, display:'flex', flexDirection:'column', gap:6 }}>
                       <div>
-                        <div style={{ color:'#8b949e', fontSize:9 }}>Income at 80</div>
-                        <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:11 }}>
-                          {fmt(opt.income_at_80)}
+                        <div style={{ color:'#8b949e' }}>Annual income, yr 1</div>
+                        <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:15 }}>
+                          {fmt(opt.annual_income_yr1)}/yr
+                          <span style={{ color:betterThan4pct?GREEN:RED, fontSize:9, marginLeft:6 }}>
+                            {betterThan4pct?'▲ beats SWR':'▼ below SWR'}
+                          </span>
                         </div>
                       </div>
                       <div>
-                        <div style={{ color:'#8b949e', fontSize:9 }}>Income at 90</div>
-                        <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:11 }}>
-                          {fmt(opt.income_at_90)}
+                        <div style={{ color:'#8b949e' }}>Break-even age</div>
+                        <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace' }}>
+                          {opt.break_even_age ?? '—'}
                         </div>
                       </div>
+                      {opt.survivor_fraction > 0 && (
+                        <div>
+                          <div style={{ color:'#8b949e' }}>Survivor benefit</div>
+                          <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace' }}>
+                            {(opt.survivor_fraction*100).toFixed(0)}%
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
 
-          <Card accent="#30363d">
-            <p style={{ color:'#8fa3b8', fontSize:12, lineHeight:1.6, margin:0 }}>
-              <strong style={{ color:'#8fa3b8' }}>Annuity vs Drawdown:</strong> An annuity trades your pension pot for a guaranteed income for life.
-              Drawdown keeps the pot invested (4% SWR shown) but runs the risk of exhaustion.
-              The break-even age is when cumulative annuity income exceeds the pension pot you gave up.
-              Check the Tax Optimiser → UFPLS vs PCLS tab for crystallisation strategy before choosing.
-            </p>
-          </Card>
-        </div>
-      ))}
+            <Card accent="#30363d">
+              <p style={{ color:'#8fa3b8', fontSize:12, lineHeight:1.6, margin:0 }}>{item.notes}</p>
+              <p style={{ color:'#8fa3b8', fontSize:11, lineHeight:1.6, margin:'10px 0 0' }}>
+                <strong style={{ color:'#8fa3b8' }}>Annuity vs Drawdown:</strong> An annuity trades your pension pot for a guaranteed income for life.
+                Drawdown keeps the pot invested (4% SWR shown) but runs the risk of exhaustion.
+                The break-even age is when cumulative annuity income exceeds the pension pot you gave up.
+              </p>
+            </Card>
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 // ── Tab 4: State Pension ───────────────────────────────────────────────────────
+// Matches StatePensionProjectionOut in retirement.py — NI top-up and
+// deferral are two separate option lists, not a single per-year series.
 
-interface SPYear { year: number; qualifying_years: number; cumulative_pension: number
-                   gap_cost_to_fill: number; roi_pct: number }
-interface SPPerson { person_name: string; current_qualifying_years: number
-                     full_qualifying_years: number; shortfall: number
-                     weekly_pension: number; annual_pension: number
-                     state_pension_start_year: number; deferral_bonus_per_year: number
-                     class3_cost_total: number; class3_roi_pct: number
-                     years: SPYear[] }
+interface NiTopUpOption { tax_year: string; cost_gbp: number; weekly_pension_gain: number
+                           annual_pension_gain: number; years_to_recoup: number; roi_10yr_pct: number }
+interface DeferralOption { claim_age: number; weeks_deferred: number; annual_bonus_pct: number
+                            weekly_pension_with_bonus: number; annual_pension_with_bonus: number
+                            break_even_years: number }
+interface SPPerson { person_id: string; person_name: string; current_ni_years: number
+                      ni_years_needed: number; gap_years: number; projected_start_year: number
+                      full_weekly_amount: number; projected_weekly: number; projected_annual: number
+                      triple_lock_at_ages: Record<string, number>
+                      top_up_options: NiTopUpOption[]; deferral_options: DeferralOption[]
+                      total_top_up_cost: number; max_pension_if_filled: number; warnings: string[] }
 
 function StatePensionTab({ path }: { path: string }) {
   const { data, isLoading, isError } = useQuery<SPPerson[]>({
@@ -430,65 +424,106 @@ function StatePensionTab({ path }: { path: string }) {
 
   return (
     <div>
-      {data.map(p => (
-        <div key={p.person_name} style={{ marginBottom:24 }}>
-          <div style={{ color:'#e8edf2', fontWeight:600, fontSize:14, marginBottom:12 }}>{p.person_name}</div>
+      {data.map(p => {
+        const tripleLockChart = Object.entries(p.triple_lock_at_ages).map(([age, amount]) => ({ age: Number(age), amount }))
+        return (
+          <div key={p.person_id} style={{ marginBottom:24 }}>
+            <div style={{ color:'#e8edf2', fontWeight:600, fontSize:14, marginBottom:12 }}>{p.person_name}</div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:14 }}>
-            <KPI label="NI qualifying years"
-                 value={`${p.current_qualifying_years}/${p.full_qualifying_years}`}
-                 accent={p.shortfall===0 ? GREEN : p.shortfall<=5 ? GOLD : RED} />
-            <KPI label="Weekly state pension" value={`£${p.weekly_pension.toFixed(2)}`}
-                 accent={TEAL} />
-            <KPI label="Annual state pension" value={fmt(p.annual_pension)} accent={TEAL} />
-            <KPI label="Starts" value={String(p.state_pension_start_year)} accent={GOLD} />
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:14 }}>
+              <KPI label="NI qualifying years"
+                   value={`${p.current_ni_years}/${p.ni_years_needed}`}
+                   accent={p.gap_years===0 ? GREEN : p.gap_years<=5 ? GOLD : RED} />
+              <KPI label="Projected weekly pension" value={`£${p.projected_weekly.toFixed(2)}`} accent={TEAL} />
+              <KPI label="Projected annual pension" value={fmt(p.projected_annual)} accent={TEAL} />
+              <KPI label="Starts" value={String(p.projected_start_year)} accent={GOLD} />
+            </div>
+
+            {p.gap_years > 0 && (
+              <Card title="NI gap top-up options" accent={ORNG}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:10 }}>
+                  <div>
+                    <div style={{ color:'#8b949e', fontSize:10 }}>Gap years</div>
+                    <div style={{ color:ORNG, fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>{p.gap_years}</div>
+                  </div>
+                  <div>
+                    <div style={{ color:'#8b949e', fontSize:10 }}>Total top-up cost</div>
+                    <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>
+                      {fmt(p.total_top_up_cost)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color:'#8b949e', fontSize:10 }}>Max pension if all filled</div>
+                    <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>
+                      {fmt(p.max_pension_if_filled)}
+                    </div>
+                  </div>
+                </div>
+                {p.top_up_options.length > 0 && (
+                  <div style={{ overflowX:'auto', maxHeight:160, overflowY:'auto', marginBottom:10 }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10 }}>
+                      <thead style={{ position:'sticky', top:0, background:'#162236' }}>
+                        <tr style={{ color:'#8b949e' }}>
+                          {['Tax Year','Cost','Weekly Gain','Years to Recoup','10yr ROI'].map(h=>(
+                            <th key={h} style={{ padding:'4px 6px', fontWeight:500, borderBottom:'1px solid #1d2f47', textAlign:'right' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {p.top_up_options.map(o => (
+                          <tr key={o.tax_year} style={{ borderBottom:'1px solid #0f1b2d' }}>
+                            <td style={{ padding:'4px 6px', textAlign:'right', color:TEAL }}>{o.tax_year}</td>
+                            <td style={{ padding:'4px 6px', textAlign:'right', color:'#e8edf2', fontFamily:'DM Mono, monospace' }}>{fmt(o.cost_gbp)}</td>
+                            <td style={{ padding:'4px 6px', textAlign:'right', color:'#e8edf2', fontFamily:'DM Mono, monospace' }}>£{o.weekly_pension_gain.toFixed(2)}</td>
+                            <td style={{ padding:'4px 6px', textAlign:'right', color:'#8fa3b8' }}>{o.years_to_recoup.toFixed(1)}</td>
+                            <td style={{ padding:'4px 6px', textAlign:'right', color:GREEN, fontWeight:600 }}>{o.roi_10yr_pct.toFixed(0)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p style={{ color:'#8fa3b8', fontSize:11, lineHeight:1.5, margin:0 }}>
+                  HMRC allows topping up NI gaps within the last 6 completed tax years.
+                  Check <strong style={{ color:TEAL }}>gov.uk/check-state-pension</strong> for your exact gaps.
+                </p>
+              </Card>
+            )}
+
+            {p.deferral_options.length > 0 && (
+              <Card title="Deferral options">
+                <div style={{ display:'grid', gridTemplateColumns:`repeat(${p.deferral_options.length},1fr)`, gap:10 }}>
+                  {p.deferral_options.map(d => (
+                    <div key={d.claim_age}>
+                      <div style={{ color:'#8b949e', fontSize:10 }}>Claim at {d.claim_age}</div>
+                      <div style={{ color:GOLD, fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:14 }}>
+                        +{d.annual_bonus_pct.toFixed(1)}%
+                      </div>
+                      <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontSize:11 }}>
+                        {fmt(d.annual_pension_with_bonus)}/yr
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {tripleLockChart.length > 0 && (
+              <Card title="Triple-lock projected annual pension by age">
+                <ResponsiveContainer width="100%" height={160}>
+                  <AreaChart data={tripleLockChart}>
+                    <XAxis dataKey="age" tick={{fill:'#8b949e',fontSize:9}} />
+                    <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fill:'#8b949e',fontSize:9}} />
+                    <Tooltip formatter={(v:number)=>[fmt(v),'Annual pension']} contentStyle={tipStyle} />
+                    <Area dataKey="amount" stroke={TEAL} fill={TEAL+'20'} strokeWidth={2} dot={false}
+                          name="Projected annual pension" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Card>
+            )}
           </div>
-
-          {p.shortfall > 0 && (
-            <Card title="NI gap top-up analysis" accent={ORNG}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:10 }}>
-                <div>
-                  <div style={{ color:'#8b949e', fontSize:10 }}>Years to top up</div>
-                  <div style={{ color:ORNG, fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>{p.shortfall}</div>
-                </div>
-                <div>
-                  <div style={{ color:'#8b949e', fontSize:10 }}>Total Class 3 cost</div>
-                  <div style={{ color:'#e8edf2', fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>
-                    {fmt(p.class3_cost_total)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color:'#8b949e', fontSize:10 }}>ROI (lifetime)</div>
-                  <div style={{ color:p.class3_roi_pct>200?GREEN:GOLD,
-                                fontFamily:'DM Mono, monospace', fontWeight:700, fontSize:16 }}>
-                    {p.class3_roi_pct.toFixed(0)}%
-                  </div>
-                </div>
-              </div>
-              <p style={{ color:'#8fa3b8', fontSize:11, lineHeight:1.5, margin:0 }}>
-                HMRC allows topping up NI gaps within the last 6 completed tax years.
-                Class 3 NI costs £{(17.45*52).toFixed(0)}/yr per qualifying year (2024/25).
-                Check <strong style={{ color:TEAL }}>gov.uk/check-state-pension</strong> for your exact gaps.
-              </p>
-            </Card>
-          )}
-
-          {/* Projection chart */}
-          {p.years.length > 0 && (
-            <Card title="State pension accumulation">
-              <ResponsiveContainer width="100%" height={160}>
-                <AreaChart data={p.years.filter(y=>y.year%2===0)}>
-                  <XAxis dataKey="year" tick={{fill:'#8b949e',fontSize:9}} />
-                  <YAxis tickFormatter={v=>`£${v.toLocaleString()}`} tick={{fill:'#8b949e',fontSize:9}} />
-                  <Tooltip formatter={(v:number,n:string)=>[`£${v.toLocaleString()}`,n]} contentStyle={tipStyle} />
-                  <Area dataKey="cumulative_pension" stroke={TEAL} fill={TEAL+'20'} strokeWidth={2} dot={false}
-                        name="Cumulative pension income" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
