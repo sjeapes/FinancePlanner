@@ -145,7 +145,7 @@ _UK_INSTITUTION_HINTS: list[tuple[list[str], str]] = [
     (["santander"],                             "Santander"),
     (["monzo"],                                 "Monzo"),
     (["starling"],                              "Starling"),
-    (["chase"],                                 "Chase UK"),
+    (["chase uk", "chase.co.uk"],               "Chase UK"),
     (["nationwide"],                            "Nationwide"),
     (["halifax"],                               "Halifax"),
     (["revolut"],                               "Revolut"),
@@ -258,6 +258,14 @@ def _guess_institution(text: str) -> tuple[str, str]:
     for keywords, name in _UK_INSTITUTION_HINTS:
         if any(k in lower for k in keywords):
             return name, "uk"
+    # Bare "chase" alone (no more specific "chase bank"/"chase.com"/
+    # "jpmorgan" nor "chase uk"/"chase.co.uk" signal above) is genuinely
+    # ambiguous between JPMorgan Chase (US) and the Chase UK neobank —
+    # default to US: JPMorgan Chase is one of the world's largest banks
+    # with a far larger customer base than the much newer Chase UK
+    # product, so it's the more likely match for an unqualified mention.
+    if "chase" in lower:
+        return "Chase", "us"
     return "", "unknown"
 
 
@@ -270,7 +278,21 @@ def _guess_account_type(text: str, jurisdiction: str) -> str:
     @return              LifeLedger account type string.
     """
     lower = text.lower()
-    hints = _UK_TYPE_HINTS + _US_TYPE_HINTS
+    # Check the jurisdiction-matching list first, not a fixed UK-then-US
+    # order regardless of jurisdiction. The old fixed order meant any US
+    # text containing the substring "savings" (e.g. "529 college savings
+    # plan") matched the UK list's generic ["savings", ...] -> "savings"
+    # entry before ever reaching the US list's more specific
+    # ["529", "college savings", "529 plan"] -> "plan_529" entry, which
+    # comes later in a US-jurisdiction file but was never reached.
+    # Confirmed directly: _guess_account_type("529 college savings plan",
+    # "us") returned "savings" instead of "plan_529" under the old order.
+    if jurisdiction == "us":
+        hints = _US_TYPE_HINTS + _UK_TYPE_HINTS
+    elif jurisdiction == "uk":
+        hints = _UK_TYPE_HINTS + _US_TYPE_HINTS
+    else:
+        hints = _ALL_TYPE_HINTS
     for keywords, atype in hints:
         if any(k.strip() in lower for k in keywords):
             return atype
@@ -312,7 +334,7 @@ def _detect_currency(content: str, filename: str, ofx_curdef: str = "") -> str:
 # Date parsing helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-_DATE_FORMATS = [
+_DATE_FORMATS_UK_FIRST = [
     "%Y%m%d%H%M%S",   # OFX compact with time
     "%Y%m%d",          # OFX compact date only
     "%d/%m/%Y",        # UK DD/MM/YYYY
@@ -326,18 +348,53 @@ _DATE_FORMATS = [
     "%B %d, %Y",       # "January 01, 2024"
 ]
 
+_DATE_FORMATS_US_FIRST = [
+    "%Y%m%d%H%M%S",
+    "%Y%m%d",
+    "%Y-%m-%d",
+    "%m/%d/%Y",        # US MM/DD/YYYY tried first
+    "%m-%d-%Y",
+    "%d/%m/%Y",        # UK DD/MM/YYYY as fallback
+    "%d-%m-%Y",
+    "%b %d, %Y",
+    "%B %d, %Y",
+    "%d %b %Y",
+    "%d %B %Y",
+]
 
-def _parse_date(raw: str) -> Optional[date]:
+# Kept for any external reference to the old name — same as the UK-first
+# order, which remains the default when jurisdiction is unknown (the app's
+# primary focus is UK).
+_DATE_FORMATS = _DATE_FORMATS_UK_FIRST
+
+
+def _parse_date(raw: str, jurisdiction: Optional[str] = None) -> Optional[date]:
     """
     @brief Try multiple date formats and return a date object or None.
 
-    @param raw  Raw date string from the statement.
-    @return     Parsed date or None if unparseable.
+    For an ambiguous numeric date like "02/01/2024", DD/MM and MM/DD can
+    BOTH parse validly but disagree (2 Jan vs 1 Feb) — trying formats in a
+    fixed order regardless of which institution the statement is from
+    silently picks the wrong one for roughly half of all dates in a
+    same-jurisdiction-but-wrong-order file. Confirmed directly: a US Chase
+    statement's "02/01/2024" (meant as 1 Feb) parsed as 2 Jan under a
+    UK-first order, since DD/MM=02/01 validly parses to a real date and is
+    tried before MM/DD — this silently reordered transactions and
+    corrupted which row's balance was picked as "current". jurisdiction
+    ('us' tries MM/DD first; anything else, including None, tries DD/MM
+    first) should be threaded through from the same statement's already-
+    detected institution/jurisdiction wherever this is called per-row.
+
+    @param raw           Raw date string from the statement.
+    @param jurisdiction  'us' to prefer MM/DD/YYYY; anything else (or
+                          omitted) prefers DD/MM/YYYY.
+    @return               Parsed date or None if unparseable.
     """
     if not raw:
         return None
     raw = raw.strip().split(".")[0]   # trim timezone component if present
-    for fmt in _DATE_FORMATS:
+    formats = _DATE_FORMATS_US_FIRST if (jurisdiction or "").lower() == "us" else _DATE_FORMATS_UK_FIRST
+    for fmt in formats:
         try:
             return datetime.strptime(raw, fmt).date()
         except ValueError:
@@ -565,7 +622,7 @@ def _parse_csv_bank(content: str, filename: str) -> ParsedStatement:
         raw_bal  = keys.get(balance_col, "") if balance_col else ""
         raw_amt  = keys.get(amount_col,  "") if amount_col  else ""
 
-        d_obj = _parse_date(raw_date) if raw_date else None
+        d_obj = _parse_date(raw_date, jurisdiction) if raw_date else None
         if not d_obj:
             continue
 
@@ -693,7 +750,21 @@ def _parse_csv_broker(content: str, filename: str) -> ParsedStatement:
     if jurisdiction == "us":
         col_patterns = _BROKER_US_COLUMNS
     else:
-        col_patterns = {**_BROKER_UK_COLUMNS, **_BROKER_US_COLUMNS}  # try both
+        # "Try both": union the pattern SETS per key, not a dict-merge
+        # overwrite. {**_BROKER_UK_COLUMNS, **_BROKER_US_COLUMNS} looks
+        # like it merges both, but for any key present in both dicts
+        # (price, value, name, units, isin, ticker), it silently replaces
+        # the UK set with the US one wholesale rather than unioning them —
+        # UK-only patterns on a shared key (e.g. "price (p)", "value (£)",
+        # neither present in the US set) were being discarded entirely.
+        # Confirmed directly: a valid Hargreaves Lansdown CSV with
+        # "Price (p)"/"Value (£)" columns matched zero holdings under the
+        # old merge, because both columns resolved to no match at all and
+        # every row's computed value fell through to 0.
+        col_patterns = {
+            key: _BROKER_UK_COLUMNS.get(key, set()) | _BROKER_US_COLUMNS.get(key, set())
+            for key in set(_BROKER_UK_COLUMNS) | set(_BROKER_US_COLUMNS)
+        }
 
     name_col   = _find_col(headers, col_patterns["name"])
     units_col  = _find_col(headers, col_patterns["units"])

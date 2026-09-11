@@ -436,7 +436,20 @@ class CountryProjectionEngine:
             total_wealth_gbp = (total_wealth if cfg.country == "uk"
                                 else total_wealth / cfg.fx_rate)
 
-            if fire_year is None and total_wealth >= fire_target and phase == "working":
+            # Deliberately NOT gated to phase == "working": FIRE is a
+            # wealth-crossing-a-threshold question, independent of the
+            # configured retire_year, which is just an input assumption
+            # (not derived from when FIRE is actually achieved). Gating
+            # this to the working phase meant any path whose wealth
+            # crossed the target shortly after — rather than strictly
+            # before — its configured retirement date could never report
+            # a fire_year at all, even while wealth kept growing for
+            # decades afterward. Confirmed directly against the UK
+            # regression scenario: wealth was £4.84M at retire_year 2044
+            # (just under the £5M target), crossed it by ~2045-46, and
+            # reached £14.9M by 2072 — fire_year was permanently None
+            # despite FIRE clearly being achieved, until this fix.
+            if fire_year is None and total_wealth >= fire_target:
                 fire_year = yr
                 logger.debug("%s FIRE in %d: total_wealth=%.0f target=%.0f",
                              cfg.path_id, yr, total_wealth, fire_target)
