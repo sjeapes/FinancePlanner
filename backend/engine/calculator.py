@@ -37,6 +37,59 @@ from backend.engine.tax_engine import TaxResult, calculate_net_income
 logger = logging.getLogger(__name__)
 
 
+_fx_warned_pairs: set[str] = set()
+
+
+def convert_to_base_currency(amount: float, currency: Optional[str], config: "AppConfig") -> float:
+    """
+    @brief Convert an amount from its stated currency to config.base_currency.
+
+    Shared by ProjectionEngine._to_base_currency (the main per-year
+    projection loop) and compute_current_net_worth (a standalone function
+    used by /api/networth/current, fire.py, and the Dashboard/Portfolio
+    Mix/Retirement Planner/Scenarios screens built on top of them) — both
+    need the exact same conversion, and duplicating it risked the two
+    drifting out of sync.
+
+    Uses config.raw['fx']['rates'] (e.g. GBP_USD: 1.27, meaning 1 GBP =
+    1.27 USD — the standard quoting convention) with a flat rate (no
+    historical drift modelling; annual_drift in config is reserved for
+    future use). Missing or zero currency defaults to the base currency
+    (no conversion). An unrecognised non-base currency logs a warning
+    once per pair and is left unconverted rather than silently guessing a
+    rate, since a wrong guess would be worse than a clearly-flagged no-op.
+
+    @param amount    Raw amount in `currency`.
+    @param currency  ISO 4217 currency code the amount is stated in.
+    @param config    AppConfig carrying base_currency and raw['fx']['rates'].
+    @return          Amount converted to config.base_currency.
+    """
+    base = (getattr(config, "base_currency", None) or "GBP").upper()
+    cur = (currency or base).upper()
+    if cur == base:
+        return amount
+    rates = {}
+    try:
+        rates = (getattr(config, "raw", None) or {}).get("fx", {}).get("rates", {})
+    except Exception:
+        pass
+    pair = f"{base}_{cur}"
+    rate = rates.get(pair)
+    if rate is None or rate == 0:
+        if pair not in _fx_warned_pairs:
+            logger.warning(
+                "convert_to_base_currency: no FX rate configured for %s (fx.rates.%s) — "
+                "treating %s amounts as unconverted %s. Add a rate to "
+                "lifeledger_config.yaml's fx.rates section to fix this.",
+                pair, pair, cur, base,
+            )
+            _fx_warned_pairs.add(pair)
+        return amount
+    # pair is BASE_QUOTE meaning "1 BASE = <rate> QUOTE" — converting a
+    # QUOTE-currency amount back to BASE means dividing by that rate.
+    return amount / rate
+
+
 # ── Current (today's) net worth — raw balances, no simulation ────────────────
 
 @dataclass
@@ -116,34 +169,43 @@ def _is_primary_residence(prop) -> bool:
     return ptype == "residential" and rental == 0.0
 
 
-def compute_current_net_worth(scenario: Scenario) -> CurrentNetWorthBreakdown:
+def compute_current_net_worth(scenario: Scenario, config: Optional["AppConfig"] = None) -> CurrentNetWorthBreakdown:
     """
     @brief Compute today's net worth directly from as-entered account
            balances, with no simulation applied.
 
     @param scenario  Scenario to read balances from.
+    @param config    AppConfig for currency conversion (base_currency +
+                      fx.rates). If omitted, no conversion is applied and
+                      every amount is treated as already being in the
+                      base currency — only safe for single-currency
+                      scenarios. Callers should always pass the real
+                      app config (request.app.state.config) when available.
     @return          CurrentNetWorthBreakdown.
     """
     out = CurrentNetWorthBreakdown()
+    def _conv(amount: float, currency) -> float:
+        return convert_to_base_currency(amount, currency, config) if config else amount
     try:
         for acc in scenario.savings_accounts:
-            val = float(getattr(acc, "current_value", 0.0))
+            val = _conv(float(getattr(acc, "current_value", 0.0)), getattr(acc, "currency", None))
             out.total_savings += val
             out.breakdown[acc.id] = {"name": acc.name, "category": "savings", "value": val}
 
         for acc in scenario.investment_accounts:
-            val = float(acc.total_value()) if hasattr(acc, "total_value") else float(getattr(acc, "current_value", 0.0))
+            raw = float(acc.total_value()) if hasattr(acc, "total_value") else float(getattr(acc, "current_value", 0.0))
+            val = _conv(raw, getattr(acc, "currency", None))
             out.total_investments += val
             out.breakdown[acc.id] = {"name": acc.name, "category": "investment", "value": val}
 
         for p in scenario.pension_funds:
-            val = float(getattr(p, "current_value", 0.0))
+            val = _conv(float(getattr(p, "current_value", 0.0)), getattr(p, "currency", None))
             out.total_pensions += val
             out.breakdown[p.id] = {"name": p.name, "category": "pension", "value": val}
 
         primary_residence_mortgage_ids: set[str] = set()
         for p in scenario.properties:
-            val = float(getattr(p, "current_value", 0.0))
+            val = _conv(float(getattr(p, "current_value", 0.0)), getattr(p, "currency", None))
             out.total_property += val
             is_primary = _is_primary_residence(p)
             if is_primary:
@@ -158,7 +220,7 @@ def compute_current_net_worth(scenario: Scenario) -> CurrentNetWorthBreakdown:
 
         primary_residence_mortgage_balance = 0.0
         for m in scenario.mortgages:
-            val = float(getattr(m, "current_balance", 0.0))
+            val = _conv(float(getattr(m, "current_balance", 0.0)), getattr(m, "currency", None))
             out.total_mortgages += val
             if m.id in primary_residence_mortgage_ids:
                 primary_residence_mortgage_balance += val
@@ -413,6 +475,34 @@ class ProjectionEngine:
         n = max(0, target_year - base_year)
         return (1.0 + self.config.inflation_base_rate) ** n
 
+    def _to_base_currency(self, amount: float, currency: str) -> float:
+        """
+        @brief Convert an amount from its stated currency to the scenario's
+               base currency (config.base_currency, almost always GBP).
+
+        Every raw balance/income/expense value read from a scenario object
+        carries its own `currency` field, but nothing downstream in this
+        engine previously checked it at all — every amount was summed as
+        though it were already in the base currency. For a scenario mixing
+        currencies (a US salary, a US mortgage, GBP savings, etc.) this
+        silently treated $1 as worth £1, materially overstating or
+        understating net worth, income, and expenses depending on which
+        way the mismatch ran. Confirmed directly against a real scenario:
+        a $242,000 USD salary and a $1,250,000 USD property were both
+        being summed as if they were £242,000 and £1,250,000.
+
+        Thin wrapper around the module-level convert_to_base_currency() so
+        compute_current_net_worth() (a standalone function, not a method —
+        used by /api/networth/current, fire.py, and everything built on
+        top of them) shares the exact same conversion logic rather than a
+        second, possibly-drifting copy.
+
+        @param amount    Raw amount in `currency`.
+        @param currency  ISO 4217 currency code the amount is stated in.
+        @return          Amount converted to config.base_currency.
+        """
+        return convert_to_base_currency(amount, currency, self.config)
+
     def project(self, scenario: Scenario) -> TimelineResult:
         """
         @brief Run the full year-by-year projection for a scenario.
@@ -430,29 +520,34 @@ class ProjectionEngine:
         end = self.config.projection_end_year
 
         # ── Mutable working state (deep-copy initial values) ─────────────────
+        # Every balance is converted to the scenario's base currency here,
+        # at the single point each account's value first enters the engine
+        # — growth/contributions/drawdown all then operate on an already-
+        # consistent base-currency balance, so nothing downstream needs its
+        # own conversion. See _to_base_currency for why this matters.
         # Savings: account_id -> current balance
         savings_state: dict[str, float] = {
-            acc.id: acc.current_value
+            acc.id: self._to_base_currency(acc.current_value, getattr(acc, "currency", None))
             for acc in scenario.savings_accounts
         }
         # Investments: account_id -> current balance
         invest_state: dict[str, float] = {
-            acc.id: acc.total_value()
+            acc.id: self._to_base_currency(acc.total_value(), getattr(acc, "currency", None))
             for acc in scenario.investment_accounts
         }
         # Pensions: pension_id -> current balance
         pension_state: dict[str, float] = {
-            p.id: p.current_value
+            p.id: self._to_base_currency(p.current_value, getattr(p, "currency", None))
             for p in scenario.pension_funds
         }
         # Mortgages: mortgage_id -> current balance
         mortgage_state: dict[str, float] = {
-            m.id: m.current_balance
+            m.id: self._to_base_currency(m.current_balance, getattr(m, "currency", None))
             for m in scenario.mortgages
         }
         # Properties: property_id -> current value
         property_state: dict[str, float] = {
-            p.id: p.current_value
+            p.id: self._to_base_currency(p.current_value, getattr(p, "currency", None))
             for p in scenario.properties
         }
         # Track TFLS already taken
@@ -475,6 +570,11 @@ class ProjectionEngine:
                 gross = src.gross_in_year(year)
                 if gross <= 0:
                     continue
+                # Convert to base currency before tax/contribution math — UK
+                # tax bands are GBP-denominated, so a USD salary must be
+                # converted first or it's taxed against the wrong bands
+                # entirely, on top of the raw double-counting error.
+                gross = self._to_base_currency(gross, getattr(src, "currency", None))
 
                 profile = self._get_tax_profile(src.person_id, scenario)
                 pension_contrib_gross = sum(
@@ -696,26 +796,27 @@ class ProjectionEngine:
             for ev in scenario.life_events:
                 if not ev.date or ev.date.year != year:
                     continue
+                ev_amount = self._to_base_currency(ev.amount, getattr(ev, "currency", None))
                 if ev.affects_account_id:
                     if ev.affects_account_id in savings_state:
-                        savings_state[ev.affects_account_id] += ev.amount
+                        savings_state[ev.affects_account_id] += ev_amount
                         savings_state[ev.affects_account_id] = max(
                             0.0, savings_state[ev.affects_account_id]
                         )
                     elif ev.affects_account_id in invest_state:
-                        invest_state[ev.affects_account_id] += ev.amount
+                        invest_state[ev.affects_account_id] += ev_amount
                         invest_state[ev.affects_account_id] = max(
                             0.0, invest_state[ev.affects_account_id]
                         )
                 snap.events.append(
-                    f"{ev.name}: £{ev.amount:,.0f} ({ev.event_type.value})"
+                    f"{ev.name}: £{ev_amount:,.0f} ({ev.event_type.value})"
                 )
 
             # ── Step 10: Expenses ─────────────────────────────────────────────
             for exp in scenario.expense_buckets:
                 if not exp.is_active_in_year(year):
                     continue
-                amount = exp.annual_amount
+                amount = self._to_base_currency(exp.annual_amount, getattr(exp, "currency", None))
                 if exp.inflation_linked:
                     amount *= self._inflation_factor(start, year)
                 snap.total_expenses += amount
@@ -763,7 +864,8 @@ class ProjectionEngine:
 
                 # Retirement income coverage: total income vs retirement expenses
                 retirement_expenses = sum(
-                    exp.annual_amount * self._inflation_factor(start, year)
+                    self._to_base_currency(exp.annual_amount, getattr(exp, "currency", None))
+                    * self._inflation_factor(start, year)
                     for exp in scenario.expense_buckets
                     if exp.is_active_in_year(year) and exp.inflation_linked
                 )

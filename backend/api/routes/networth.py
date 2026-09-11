@@ -96,7 +96,7 @@ def get_current_net_worth(scenario_path: str, request: Request) -> CurrentNetWor
         if scenario is None:
             raise HTTPException(status_code=422, detail=f"Failed to parse scenario YAML: {scenario_path}")
 
-        result = compute_current_net_worth(scenario)
+        result = compute_current_net_worth(scenario, request.app.state.config)
         return CurrentNetWorthResponse(
             total_savings=result.total_savings,
             total_investments=result.total_investments,

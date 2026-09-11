@@ -210,7 +210,11 @@ export function InvestmentForm({ account, people, onSave, onCancel }: Props) {
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Currency</label>
-          <input {...register('currency', { required: true })} style={inputStyle} />
+          <select {...register('currency', { required: true })} style={inputStyle}>
+            <option value="GBP">GBP — British Pound</option>
+            <option value="USD">USD — US Dollar</option>
+            <option value="EUR">EUR — Euro</option>
+          </select>
           {errors.currency && <div style={errorStyle}>Required</div>}
         </div>
         <div style={fieldStyle}>

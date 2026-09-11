@@ -180,7 +180,7 @@ def fire_status(scenario_path: str, request: Request) -> FireStatusResponse:
         # General net worth displays (Dashboard, Portfolio Mix) correctly
         # still include it via total_net_worth — only this FIRE-specific
         # figure excludes it.
-        current_nw_result = compute_current_net_worth(scenario)
+        current_nw_result = compute_current_net_worth(scenario, config)
         current_nw = current_nw_result.total_net_worth_investable
 
         has_fire_target = ft is not None

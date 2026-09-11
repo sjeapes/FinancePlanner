@@ -12,6 +12,7 @@ interface FormValues {
   pension_type: string
   owner_id: string
   current_value: number
+  currency: string
   assumed_growth_rate: number
   drawdown_mode: string
   drawdown_rate: number
@@ -73,6 +74,7 @@ export function PensionForm({ pension, people, onSave, onCancel }: Props) {
       pension_type: pension?.pension_type ?? 'SIPP',
       owner_id: pension?.owner_id ?? '',
       current_value: pension?.current_value ?? 0,
+      currency: pension?.currency ?? 'GBP',
       assumed_growth_rate:
         pension?.assumed_growth_rate !== undefined
           ? parseFloat((pension.assumed_growth_rate * 100).toPrecision(6))
@@ -96,6 +98,7 @@ export function PensionForm({ pension, people, onSave, onCancel }: Props) {
       pension_type: values.pension_type,
       owner_id: values.owner_id,
       current_value: Number(values.current_value),
+      currency: values.currency,
       assumed_growth_rate: Number(values.assumed_growth_rate) / 100,
       drawdown_config: {
         ...(pension?.drawdown_config ?? {}),
@@ -157,6 +160,15 @@ export function PensionForm({ pension, people, onSave, onCancel }: Props) {
             />
           </div>
           {errors.current_value && <div style={errorStyle}>Required</div>}
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Currency</label>
+          <select {...register('currency', { required: true })} style={inputStyle}>
+            <option value="GBP">GBP — British Pound</option>
+            <option value="USD">USD — US Dollar</option>
+            <option value="EUR">EUR — Euro</option>
+          </select>
+          {errors.currency && <div style={errorStyle}>Required</div>}
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Assumed Growth Rate</label>
