@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
-  ReferenceLine, Cell,
+  ReferenceLine,
 } from 'recharts'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useSimulationStore } from '../store/simulationStore'
