@@ -153,6 +153,11 @@ export function LifeEventForm({ event, people = [], onSave, onCancel }: Props) {
               style={{ ...inputStyle, fontFamily: 'DM Mono, monospace' }}
             />
           </div>
+          <div style={{ color: '#8b949e', fontSize: 10, marginTop: 4 }}>
+            Unlike expenses and income, this is NOT inflated — enter the actual amount
+            expected on the event's date itself (e.g. "the inheritance will be about
+            £50,000 when it happens in 2035", not today's equivalent).
+          </div>
           {errors.amount && <div style={errorStyle}>Required</div>}
         </div>
         <div style={fieldStyle}>

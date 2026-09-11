@@ -130,6 +130,7 @@ class PlanningCoachEngine:
         fire_target: Optional[float] = None,
         fire_year_projected: Optional[int] = None,
         today: Optional[date] = None,
+        emergency_fund_status: Optional[dict] = None,
     ) -> CoachResult:
         """
         @brief Evaluate all 10 rules and return ranked alerts.
@@ -139,6 +140,16 @@ class PlanningCoachEngine:
         @param fire_target           FIRE target net worth from scenario config.
         @param fire_year_projected   Projected FIRE year from latest simulation.
         @param today                 Reference date (default: date.today()).
+        @param emergency_fund_status Pre-computed {total_liquid_cash, monthly_expenses,
+                                      months_covered, target_months} from
+                                      RetirementEngine._emergency_fund() — the same
+                                      calculation the Dashboard's Emergency Fund panel
+                                      uses. When omitted, Rule 4 falls back to a
+                                      simpler scan of savings_accounts only (which
+                                      misses ISAs/LISAs held as investment_accounts,
+                                      even though those are configured as liquid) —
+                                      always pass this when available rather than
+                                      relying on the fallback.
         @return                      CoachResult.
         """
         today = today or date.today()
@@ -270,14 +281,22 @@ class PlanningCoachEngine:
                 break  # One reminder is enough
 
         # ── Rule 4: Emergency fund ────────────────────────────────────────────
-        emergency_ids  = {"emergency_fund", "emergency", "current_account"}
-        emergency_val  = sum(
-            float(a.get("current_value", 0)) for a in savings
-            if (a.get("account_type", "") in {"general", "savings"}
-                or any(k in str(a.get("id","")).lower() for k in emergency_ids))
-        )
-        monthly_expenses = annual_expenses / 12 if annual_expenses > 0 else 3_000.0
-        months_covered   = emergency_val / monthly_expenses if monthly_expenses > 0 else 0.0
+        if emergency_fund_status is not None:
+            emergency_val    = emergency_fund_status["total_liquid_cash"]
+            monthly_expenses = emergency_fund_status["monthly_expenses"] or (annual_expenses / 12 if annual_expenses > 0 else 3_000.0)
+            months_covered   = emergency_fund_status["months_covered"]
+        else:
+            # Fallback only — misses ISAs/LISAs held as investment_accounts
+            # even though they're configured as liquid. See the docstring
+            # on `run()`; callers should always pass emergency_fund_status.
+            emergency_ids  = {"emergency_fund", "emergency", "current_account"}
+            emergency_val  = sum(
+                float(a.get("current_value", 0)) for a in savings
+                if (a.get("account_type", "") in {"general", "savings"}
+                    or any(k in str(a.get("id","")).lower() for k in emergency_ids))
+            )
+            monthly_expenses = annual_expenses / 12 if annual_expenses > 0 else 3_000.0
+            months_covered   = emergency_val / monthly_expenses if monthly_expenses > 0 else 0.0
 
         if months_covered < 3:
             alerts.append(CoachAlert(

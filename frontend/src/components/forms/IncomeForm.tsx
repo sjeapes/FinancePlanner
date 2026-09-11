@@ -176,6 +176,11 @@ export function IncomeForm({ income, people, onSave, onCancel }: Props) {
               style={{ ...inputStyle, fontFamily: 'DM Mono, monospace' }}
             />
           </div>
+          <div style={{ color: '#8b949e', fontSize: 10, marginTop: 4 }}>
+            Enter this in today's money. The growth rate below (not inflation) determines
+            how it changes each year — set it to your expected inflation rate for a flat
+            real-terms income, or higher/lower for a real pay rise or cut.
+          </div>
           {errors.gross_annual && <div style={errorStyle}>Required</div>}
         </div>
         <div style={fieldStyle}>

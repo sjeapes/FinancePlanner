@@ -116,6 +116,12 @@ export function ExpenseForm({ expense, onSave, onCancel }: Props) {
               style={{ ...inputStyle, fontFamily: 'DM Mono, monospace' }}
             />
           </div>
+          <div style={{ color: '#8b949e', fontSize: 10, marginTop: 4 }}>
+            Enter this in today's money — what it would cost right now, even if the
+            expense doesn't start until later. If "Inflation-linked" below is checked,
+            it grows with inflation each year until the start date, then continues
+            growing every year after that.
+          </div>
           {errors.annual_amount && <div style={errorStyle}>Required</div>}
         </div>
         <div style={fieldStyle}>
