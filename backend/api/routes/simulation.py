@@ -118,6 +118,11 @@ class YearSnapshotOut(BaseModel):
     @param accounts Per-account snapshots (when include_breakdown=True).
     @param income_sources Per-source income snapshots.
     @param events Life event descriptions.
+    @param cumulative_inflation_factor Cumulative inflation multiplier from the
+           projection's start year to this year — (1+rate)^(year-start_year).
+           Divide any nominal figure by this to get a "today's money" (real-terms)
+           equivalent; a chart of real-terms net worth would show a flat line if
+           growth exactly matched inflation, rather than nominal's ever-rising one.
     """
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,6 +137,7 @@ class YearSnapshotOut(BaseModel):
     fire_achieved: bool
     fire_coverage: float
     income_coverage: float = 0.0
+    cumulative_inflation_factor: float = 1.0
     ages: dict[str, int] = {}
     accounts: dict[str, AccountSnapshotOut] = {}
     income_sources: list[IncomeSnapshotOut] = []
@@ -243,6 +249,8 @@ def _timeline_to_response(
     @return TimelineResponse Pydantic model.
     """
     years_out = []
+    start_year = result.config.projection_start_year if result.config else (result.years[0].year if result.years else 0)
+    inflation_rate = result.config.inflation_base_rate if result.config else 0.0
     for snap in result.years:
         accounts = _build_account_snapshot(snap.accounts) if include_breakdown else {}
         income = _build_income_snapshot(snap.income_sources)
@@ -262,6 +270,7 @@ def _timeline_to_response(
             accounts=accounts,
             income_sources=income,
             events=snap.events,
+            cumulative_inflation_factor=(1.0 + inflation_rate) ** max(0, snap.year - start_year),
         ))
 
     return TimelineResponse(

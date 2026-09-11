@@ -94,13 +94,30 @@ export function PortfolioMixScreen() {
   const actual: AccountBreakdown = currentNW ? computeBreakdownFromCurrentNetWorth(currentNW.breakdown) : EMPTY_BD
   const total = Math.max(1, (Object.values(actual) as number[]).reduce((a,b)=>a+Math.max(0,b),0))
 
+  const [realTerms, setRealTerms] = useState(false)
+
   // Portfolio mix over time — this IS a legitimate use of the projection
   // timeline's per-year figures (unlike "current" net worth elsewhere,
   // these are explicitly projected future years, not a stand-in for today).
   const yearMix: YearMix[] = useMemo(() => {
     if (!timeline?.years?.length) return []
-    return timeline.years.map((y: any) => bucketTimelineYear(y.year, y.accounts ?? {}, y.total_net_worth))
-  }, [timeline])
+    return timeline.years.map((y: any) => {
+      const mix = bucketTimelineYear(y.year, y.accounts ?? {}, y.total_net_worth)
+      if (!realTerms) return mix
+      // Deflating is a uniform scalar on every component in a given year,
+      // so it's equivalent (and simpler) to apply it after bucketing
+      // rather than to each underlying account value beforehand.
+      const factor = y.cumulative_inflation_factor || 1
+      return {
+        year: mix.year,
+        total: mix.total / factor,
+        investments: mix.investments / factor,
+        pensions: mix.pensions / factor,
+        property: mix.property / factor,
+        savings: mix.savings / factor,
+      }
+    })
+  }, [timeline, realTerms])
 
   const [selectedYearIdx, setSelectedYearIdx] = useState(0)
   const selectedYear = yearMix[selectedYearIdx]
@@ -204,10 +221,37 @@ export function PortfolioMixScreen() {
       {yearMix.length > 1 && (
         <div style={{ background:'#162236', borderRadius:12, padding:'18px 20px',
                       border:'1px solid rgba(255,255,255,0.07)', marginBottom:16 }}>
-          <h3 style={{ color:'#8fa3b8', fontSize:11, fontWeight:600,
-                       textTransform:'uppercase', letterSpacing:'0.06em', margin:'0 0 14px' }}>
-            Portfolio Over Time <span style={{ textTransform: 'none', fontWeight: 400 }}>— projected, not current</span>
-          </h3>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <h3 style={{ color:'#8fa3b8', fontSize:11, fontWeight:600,
+                         textTransform:'uppercase', letterSpacing:'0.06em', margin:0 }}>
+              Portfolio Over Time <span style={{ textTransform: 'none', fontWeight: 400 }}>— projected, not current</span>
+            </h3>
+            <div style={{ display: 'flex', background: '#0f1b2d', borderRadius: 6, padding: 2 }}>
+              <button
+                onClick={() => setRealTerms(false)}
+                style={{
+                  background: !realTerms ? '#0e9aad' : 'transparent',
+                  color: !realTerms ? '#fff' : '#8fa3b8',
+                  border: 'none', borderRadius: 5, padding: '4px 12px',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Nominal
+              </button>
+              <button
+                onClick={() => setRealTerms(true)}
+                title="Deflates every year by cumulative inflation — growth that just keeps pace with inflation shows as a flat line"
+                style={{
+                  background: realTerms ? '#0e9aad' : 'transparent',
+                  color: realTerms ? '#fff' : '#8fa3b8',
+                  border: 'none', borderRadius: 5, padding: '4px 12px',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Today's money
+              </button>
+            </div>
+          </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:18 }}>
             <div>

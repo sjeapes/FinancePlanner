@@ -497,6 +497,7 @@ export function TimelineGraph() {
   const { timeline, isRunning } = useSimulationStore()
   const { activeScenarioPath }  = useConfigStore()
   const [view, setView]         = useState<View>('chart')
+  const [realTerms, setRealTerms] = useState(false)
 
   const snapshots = timeline?.years ?? []
 
@@ -531,9 +532,36 @@ export function TimelineGraph() {
       {view === 'chart' && (
         <div className="rounded-xl p-4"
              style={{ background: '#162236', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="text-xs font-semibold uppercase tracking-wide mb-4"
-               style={{ color: '#8fa3b8', letterSpacing: '0.8px' }}>
-            Net Worth Projection
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div className="text-xs font-semibold uppercase tracking-wide"
+                 style={{ color: '#8fa3b8', letterSpacing: '0.8px' }}>
+              Net Worth Projection
+            </div>
+            <div style={{ display: 'flex', background: '#0f1b2d', borderRadius: 6, padding: 2 }}>
+              <button
+                onClick={() => setRealTerms(false)}
+                style={{
+                  background: !realTerms ? '#0e9aad' : 'transparent',
+                  color: !realTerms ? '#fff' : '#8fa3b8',
+                  border: 'none', borderRadius: 5, padding: '4px 12px',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Nominal
+              </button>
+              <button
+                onClick={() => setRealTerms(true)}
+                title="Deflates every year by cumulative inflation — growth that just keeps pace with inflation shows as a flat line"
+                style={{
+                  background: realTerms ? '#0e9aad' : 'transparent',
+                  color: realTerms ? '#fff' : '#8fa3b8',
+                  border: 'none', borderRadius: 5, padding: '4px 12px',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Today's money
+              </button>
+            </div>
           </div>
           {isRunning ? (
             <div className="rounded-lg flex items-center justify-center animate-pulse"
@@ -541,7 +569,7 @@ export function TimelineGraph() {
               <span style={{ color: '#8fa3b8', fontSize: 13 }}>Simulating…</span>
             </div>
           ) : (
-            <TimelineChart data={snapshots} fireYear={timeline?.fire_year} height={420} />
+            <TimelineChart data={snapshots} fireYear={timeline?.fire_year} height={420} realTerms={realTerms} />
           )}
         </div>
       )}

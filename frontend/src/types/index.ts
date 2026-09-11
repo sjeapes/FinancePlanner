@@ -256,6 +256,7 @@ export interface YearSnapshot {
   fire_achieved: boolean
   fire_coverage: number
   income_coverage: number
+  cumulative_inflation_factor: number
   ages: Record<string, number>
   accounts: Record<string, AccountSnapshotOut>
   income_sources: IncomeSnapshotOut[]

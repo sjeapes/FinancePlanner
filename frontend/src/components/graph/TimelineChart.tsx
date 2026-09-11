@@ -15,6 +15,10 @@ interface Props {
   data: YearSnapshot[]
   fireYear?: number | null
   height?: number
+  /** When true, deflate every value by cumulative_inflation_factor so a
+   *  chart where growth exactly matches inflation shows a flat line
+   *  instead of the ever-rising nominal one. */
+  realTerms?: boolean
 }
 
 function fmtY(v: number): string {
@@ -29,7 +33,7 @@ interface ChartRow {
   post_fire?: number
 }
 
-export function TimelineChart({ data, fireYear, height = 320 }: Props) {
+export function TimelineChart({ data, fireYear, height = 320, realTerms = false }: Props) {
   if (data.length === 0) {
     return (
       <div
@@ -43,13 +47,15 @@ export function TimelineChart({ data, fireYear, height = 320 }: Props) {
 
   const hasPostFire = fireYear != null && data.some((d) => d.year >= fireYear)
 
-  const chartData: ChartRow[] = data.map((snap) => ({
-    year: snap.year,
-    pre_fire:
-      fireYear == null || snap.year <= fireYear ? snap.total_net_worth : undefined,
-    post_fire:
-      fireYear != null && snap.year >= fireYear ? snap.total_net_worth : undefined,
-  }))
+  const chartData: ChartRow[] = data.map((snap) => {
+    const factor = realTerms ? (snap.cumulative_inflation_factor || 1) : 1
+    const nw = snap.total_net_worth / factor
+    return {
+      year: snap.year,
+      pre_fire: fireYear == null || snap.year <= fireYear ? nw : undefined,
+      post_fire: fireYear != null && snap.year >= fireYear ? nw : undefined,
+    }
+  })
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -84,7 +90,7 @@ export function TimelineChart({ data, fireYear, height = 320 }: Props) {
         <Area
           type="monotone"
           dataKey="pre_fire"
-          name="Net Worth"
+          name={realTerms ? "Net Worth (today's money)" : "Net Worth"}
           stroke="#0e9aad"
           strokeWidth={2}
           fill="url(#tealGradient)"
