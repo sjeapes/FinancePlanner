@@ -594,12 +594,19 @@ export function Dashboard() {
   // Deliberately NOT timeline.years[0]: that engine snapshot already has a
   // full year of growth/income/contributions baked in, which overstates
   // "current" by roughly a year of compounding. See backend networth.py.
-  const { data: currentNetWorth } = useQuery<{ total_net_worth: number }>({
+  const { data: currentNetWorth } = useQuery<{ total_net_worth: number; total_net_worth_investable: number }>({
     queryKey: ['networth-current', activeScenarioPath],
     queryFn: () => apiClient.get('/networth/current', { params: { scenario_path: activeScenarioPath } }).then(r => r.data),
     staleTime: 30_000,
   })
   const trueCurrentNW = currentNetWorth?.total_net_worth ?? null
+  // FIRE-progress specifically must exclude the primary residence — a home
+  // you live in isn't a source of retirement spending unless sold or
+  // downsized. Matches fire.py's current_net_worth. Used for MilestoneCards'
+  // FIRE progress bar and PlanningCoachPanel's FIRE nudges below; the KPI
+  // card above correctly keeps using the full trueCurrentNW instead, since
+  // general net worth SHOULD include the home.
+  const investableNW = currentNetWorth?.total_net_worth_investable ?? trueCurrentNW
 
   const currentSnap = timeline?.years?.[0]
   const fireYear    = timeline?.fire_year
@@ -647,7 +654,7 @@ export function Dashboard() {
 
       {/* Milestone cards (below KPIs, always visible when simulation run) */}
       <MilestoneCards
-        nw={trueCurrentNW}
+        nw={investableNW}
         fireYear={fireYear ?? null}
         fireTarget={fireTarget}
         timeline={timeline}
@@ -674,7 +681,7 @@ export function Dashboard() {
       <EmergencyFundPanel scenarioPath={activeScenarioPath} />
 
       {/* MC Plan Insights */}
-      <MCInsightsPanel scenarioPath={activeScenarioPath} timeline={timeline} monteCarlo={monteCarlo} currentNW={trueCurrentNW} />
+      <MCInsightsPanel scenarioPath={activeScenarioPath} timeline={timeline} monteCarlo={monteCarlo} currentNW={investableNW} />
 
       {/* Price staleness alert */}
       <PriceStalePanel scenarioPath={activeScenarioPath} />
@@ -682,7 +689,7 @@ export function Dashboard() {
       {/* Planning coach alerts */}
       <PlanningCoachPanel
         scenarioPath={activeScenarioPath}
-        nw={trueCurrentNW}
+        nw={investableNW}
         fireTarget={fireTarget}
         fireYear={fireYear ?? null}
       />

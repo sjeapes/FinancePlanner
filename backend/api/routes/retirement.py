@@ -36,6 +36,7 @@ from backend.engine.retirement_engine import (
     load_retirement_config,
 )
 from backend.persistence.yaml_serialiser import load_scenario_from_file
+from backend.engine.calculator import ProjectionEngine
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -426,7 +427,25 @@ def get_income_coverage(
         engine = _load_engine(request)
         scenario = _load_scenario(request, scenario_path)
         retire_year = start_year or engine._retirement_start_year(scenario)
-        coverage = engine._income_coverage(scenario, None, retire_year)
+
+        # Was previously passed as None, forcing _income_coverage's fallback
+        # path — that fallback only sums scenario.income_sources (raw
+        # salary-type entries), never the synthesized retirement income the
+        # main projection engine computes (state pension, pension
+        # drawdown). Effect: any year after employment income ended showed
+        # £0 total_income regardless of how well-configured state pension
+        # or pension accounts were. Confirmed directly: a person with state
+        # pension correctly configured (qualifying years, weekly amount)
+        # still showed £0 income in every year past their state pension
+        # start age under the old None-timeline path. Running the actual
+        # projection and passing its timeline lets _income_coverage read
+        # each year's real snap.income_sources instead.
+        config = request.app.state.config
+        tax_profiles = request.app.state.tax_profiles
+        proj_engine = ProjectionEngine(config, tax_profiles)
+        timeline = proj_engine.project(scenario)
+
+        coverage = engine._income_coverage(scenario, timeline, retire_year)
         cov = coverage
         return IncomeCoverageReportOut(
             years=[_cov_row_out(r) for r in cov.years],

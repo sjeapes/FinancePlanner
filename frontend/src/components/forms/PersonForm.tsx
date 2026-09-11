@@ -76,7 +76,7 @@ export function PersonForm({ person, onSave, onCancel }: Props) {
       state_pension_qualifying_years: sp.qualifying_years ?? 0,
       state_pension_full_qualifying_years: sp.full_qualifying_years ?? 35,
       state_pension_expected_start_age: sp.expected_start_age ?? 67,
-      state_pension_weekly_amount: sp.weekly_amount ?? 0,
+      state_pension_weekly_amount: sp.weekly_amount ?? 221.20,
       state_pension_deferral_years: sp.deferral_years ?? 0,
     },
   })
@@ -183,6 +183,12 @@ export function PersonForm({ person, onSave, onCancel }: Props) {
               {...register('state_pension_weekly_amount', { required: true, min: 0 })}
               style={{ ...inputStyle, fontFamily: 'DM Mono, monospace' }}
             />
+          </div>
+          <div style={{ color: '#8b949e', fontSize: 10, marginTop: 4 }}>
+            The full state pension weekly rate (currently £221.20 for 2025/26) —
+            not your own personal amount. Your actual pension is this figure ×
+            qualifying years ÷ years needed, calculated automatically. Only
+            change this if the government rate has since changed.
           </div>
           {errors.state_pension_weekly_amount && <div style={errorStyle}>Required</div>}
         </div>
