@@ -7,7 +7,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from backend.engine.historical_backtest import HistoricalBacktestEngine, HISTORICAL_SEQUENCES
-from backend.persistence.yaml_serialiser import load_yaml
+from backend.engine.calculator import compute_current_net_worth, convert_to_base_currency
+from backend.persistence.yaml_serialiser import load_yaml, load_scenario_from_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -39,6 +40,11 @@ def _load_scenario(request, path):
     raw = load_yaml(abs_path)
     return raw.get("scenario", raw)
 
+
+def _resolve_scenario_path(request, path):
+    root = getattr(request.app.state, "project_root", ".")
+    return path if os.path.isabs(path) else os.path.join(root, path)
+
 @router.get("/backtest/run", response_model=BacktestResultOut)
 def run_backtest(
     request: Request,
@@ -56,14 +62,37 @@ def run_backtest(
         retire_yr  = birth_yr + retire_age
         death_yr   = birth_yr + life_exp
 
-        pensions     = sc.get("pension_funds", [])
-        investments  = sc.get("investment_accounts", [])
-        savings_accts = sc.get("savings_accounts", [])
-        portfolio = sum(float(a.get("current_value", 0))
-                        for a in pensions + investments + savings_accts)
-        expenses  = sc.get("expense_buckets", [])
-        annual_spend = sum(float(e.get("annual_amount", 0)) for e in expenses
-                           if not e.get("end_date")) or 40_000.0
+        pensions = sc.get("pension_funds", [])
+
+        # Starting portfolio: use the same currency-aware calculation the
+        # Dashboard/FIRE tab/Portfolio Mix already rely on, rather than a
+        # separate raw-dict sum. That separate sum should have worked out
+        # to well over £600k against this session's real test data
+        # (pensions + savings alone, ignoring investments and currency
+        # conversion entirely) but was returning exactly £0 in every
+        # year of every scenario including the flat-growth base case —
+        # immediate "ruin" in year one for every single historical
+        # sequence, which is what prompted this investigation. Rather
+        # than keep chasing why that specific raw-dict path zeroed out,
+        # switched to the one already verified correct and currency-aware
+        # this session. Property/mortgages are deliberately excluded —
+        # this backtest models a retirement PORTFOLIO surviving drawdown,
+        # not net worth including a home you live in.
+        abs_path = _resolve_scenario_path(request, scenario_path)
+        full_scenario = load_scenario_from_file(abs_path) if os.path.isfile(abs_path) else None
+        if full_scenario is not None:
+            nw = compute_current_net_worth(full_scenario, request.app.state.config)
+            portfolio = nw.total_savings + nw.total_investments + nw.total_pensions
+        else:
+            portfolio = 0.0
+            logger.warning("run_backtest: could not parse scenario as dataclass, portfolio defaulted to 0")
+
+        expenses = sc.get("expense_buckets", [])
+        config = request.app.state.config
+        annual_spend = sum(
+            convert_to_base_currency(float(e.get("annual_amount", 0)), e.get("currency"), config)
+            for e in expenses if not e.get("end_date")
+        ) or 40_000.0
         growth = float(pensions[0].get("assumed_growth_rate", 0.07)) if pensions else 0.07
 
         engine = HistoricalBacktestEngine()
