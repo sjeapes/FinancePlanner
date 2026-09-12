@@ -520,7 +520,7 @@ class MonteCarloEngine:
         fire_achieved_count = np.zeros(n_years, dtype=np.int32)
 
         try:
-            engine = ProjectionEngine(scenario, self._app, self._tax)
+            engine = ProjectionEngine(self._app, self._tax)
         except Exception as exc:
             logger.error("_run_stochastic: failed to create ProjectionEngine: %s", exc)
             warnings_out.append(f"Projection engine error: {exc}")
@@ -539,7 +539,7 @@ class MonteCarloEngine:
                     inflation_noise, growth_noise, salary_noise
                 )
 
-                sim_engine = ProjectionEngine(scenario, sim_config, self._tax)
+                sim_engine = ProjectionEngine(sim_config, self._tax)
 
                 # Determine retirement year for SoR injection
                 retire_year = self._app.projection_end_year
@@ -550,7 +550,7 @@ class MonteCarloEngine:
                             person.dob.year + getattr(person, "target_retire_age", 67),
                         )
 
-                timeline = sim_engine.run()
+                timeline = sim_engine.project(scenario)
                 net_worths = self._extract_net_worths(timeline, years_list)
 
                 # Inject sequence-of-returns crash if configured
@@ -674,8 +674,8 @@ class MonteCarloEngine:
         for params in self._mc.macro_scenarios:
             try:
                 sim_config = self._make_macro_config(params)
-                eng = ProjectionEngine(scenario, sim_config, self._tax)
-                timeline = eng.run()
+                eng = ProjectionEngine(sim_config, self._tax)
+                timeline = eng.project(scenario)
                 net_worths = self._extract_net_worths(timeline, years_list)
 
                 fire_year: Optional[int] = timeline.fire_year
@@ -725,8 +725,8 @@ class MonteCarloEngine:
         ))
 
         try:
-            eng = ProjectionEngine(scenario, self._app, self._tax)
-            timeline = eng.run()
+            eng = ProjectionEngine(self._app, self._tax)
+            timeline = eng.project(scenario)
             net_worths = self._extract_net_worths(timeline, years_list)
         except Exception as exc:
             logger.error("_surplus_shortfall: projection failed: %s", exc)
@@ -810,7 +810,7 @@ class MonteCarloEngine:
         """
         @brief Extract net worth series from a TimelineResult as a numpy array.
 
-        @param timeline    TimelineResult from ProjectionEngine.run().
+        @param timeline    TimelineResult from ProjectionEngine.project().
         @param years_list  Target calendar years.
         @return            Float64 array of net worths, 0.0 for missing years.
         """

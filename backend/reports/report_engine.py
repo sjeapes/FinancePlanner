@@ -429,8 +429,8 @@ class ReportEngine:
                 app_cfg = load_app_config_from_file(cfg_path)
             except Exception:
                 app_cfg = AppConfig()
-            proj = ProjectionEngine(scenario, app_cfg, tax_profiles)
-            timeline = proj.run()
+            proj = ProjectionEngine(app_cfg, tax_profiles)
+            timeline = proj.project(scenario)
             logger.info("Projection complete: FIRE year=%s", timeline.fire_year)
 
         return scenario, timeline, tax_profiles
