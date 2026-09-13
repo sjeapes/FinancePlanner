@@ -226,7 +226,8 @@ function IFAExportCard() {
   const [preparedFor,  setPreparedFor]  = useState('')
   const [watermark,    setWatermark]    = useState('CONFIDENTIAL')
   const [jobId,        setJobId]        = useState<string|null>(null)
-  const [downloadUrl,  setDownloadUrl]  = useState<string|null>(null)
+  const [downloading,  setDownloading]  = useState(false)
+  const [downloadError, setDownloadError] = useState<string|null>(null)
 
   const generate = useMutation({
     mutationFn: () => apiClient.post('/reports/generate', {
@@ -241,14 +242,14 @@ function IFAExportCard() {
       mc_simulations: 500,
       paper_size: 'A4',
     }).then(r => r.data),
-    onSuccess: (d) => { setJobId(d.job_id); setDownloadUrl(null) },
+    onSuccess: (d) => { setJobId(d.job_id); setDownloadError(null) },
   })
 
   // Poll job status
   const { data: jobStatus } = useQuery({
     queryKey: ['report-job', jobId],
     queryFn: () => apiClient.get(`/reports/status/${jobId}`).then(r => r.data),
-    enabled: !!jobId && !downloadUrl,
+    enabled: !!jobId,
     refetchInterval: (q) => {
       const status = q.state.data?.status
       return status === 'complete' || status === 'failed' ? false : 2_000
@@ -256,21 +257,37 @@ function IFAExportCard() {
     staleTime: 0,
   })
 
-  useEffect(() => {
-    if (jobStatus?.status === 'complete' && jobId && !downloadUrl) {
-      // Must NOT be a hardcoded '/api/...' path: through HA Ingress the
-      // page is served at .../api/hassio_ingress/<token>/, and a plain
-      // '/api/reports/download/...' resolves against the origin instead —
-      // hitting the Supervisor's own API, not this add-on — so the
-      // generate/status calls (already correctly using apiClient, which
-      // computes the real ingress-aware base) work fine while this link
-      // 404s. Build it from the same base apiClient already resolved.
-      const base = apiClient.defaults.baseURL ?? '/api'
-      setDownloadUrl(`${base}/reports/download/${jobId}`)
-    }
-  }, [jobStatus, jobId, downloadUrl])
-
   const isRunning = jobStatus?.status === 'running' || jobStatus?.status === 'queued'
+  const isReady   = jobStatus?.status === 'complete'
+
+  // A plain <a href download> is unreliable inside the Home Assistant
+  // mobile app's WebView — WebViews commonly don't implement the native
+  // download-manager integration the HTML5 `download` attribute relies
+  // on, so the link can silently do nothing there even though it works
+  // in a normal browser. Fetching the PDF as a blob (via apiClient, which
+  // already resolves the correct ingress-aware base) and triggering the
+  // save from an in-memory object URL is far more reliable across
+  // WebViews — the same pattern already proven for the Backup export.
+  async function handleDownload() {
+    if (!jobId) return
+    setDownloading(true); setDownloadError(null)
+    try {
+      const res = await apiClient.get(`/reports/download/${jobId}`, { responseType: 'blob' })
+      const disposition = res.headers['content-disposition'] ?? ''
+      const match = /filename="([^"]+)"/.exec(disposition)
+      const filename = match?.[1] ?? `lifeledger_ifa_pack_${Date.now()}.pdf`
+
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      setDownloadError(e?.response?.data?.detail ?? e.message ?? 'Download failed')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <Card title="IFA Export Pack" accent={GOLD}>
@@ -309,20 +326,25 @@ function IFAExportCard() {
           </span>
         )}
 
-        {downloadUrl && (
-          <a href={downloadUrl} download style={{
-            background:GREEN, color:'#fff', borderRadius:6,
-            padding:'8px 22px', fontSize:12, fontWeight:600,
-            textDecoration:'none', display:'inline-block',
+        {isReady && (
+          <button onClick={handleDownload} disabled={downloading} style={{
+            background:GREEN, color:'#fff', border:'none', borderRadius:6,
+            padding:'8px 22px', fontSize:12, fontWeight:600, cursor: downloading ? 'default' : 'pointer',
+            opacity: downloading ? 0.6 : 1,
           }}>
-            ⬇ Download PDF
-          </a>
+            {downloading ? 'Downloading…' : '⬇ Download PDF'}
+          </button>
         )}
       </div>
 
       {jobStatus?.status === 'failed' && (
         <div style={{ color:RED, fontSize:12, marginTop:8 }}>
           ⚠ Report generation failed: {jobStatus.error_message}
+        </div>
+      )}
+      {downloadError && (
+        <div style={{ color:RED, fontSize:12, marginTop:8 }}>
+          ⚠ {downloadError}
         </div>
       )}
 
