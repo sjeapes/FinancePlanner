@@ -258,7 +258,15 @@ function IFAExportCard() {
 
   useEffect(() => {
     if (jobStatus?.status === 'complete' && jobId && !downloadUrl) {
-      setDownloadUrl(`/api/reports/download/${jobId}`)
+      // Must NOT be a hardcoded '/api/...' path: through HA Ingress the
+      // page is served at .../api/hassio_ingress/<token>/, and a plain
+      // '/api/reports/download/...' resolves against the origin instead —
+      // hitting the Supervisor's own API, not this add-on — so the
+      // generate/status calls (already correctly using apiClient, which
+      // computes the real ingress-aware base) work fine while this link
+      // 404s. Build it from the same base apiClient already resolved.
+      const base = apiClient.defaults.baseURL ?? '/api'
+      setDownloadUrl(`${base}/reports/download/${jobId}`)
     }
   }, [jobStatus, jobId, downloadUrl])
 

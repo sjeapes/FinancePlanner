@@ -13,6 +13,19 @@ Each model includes:
 
 import logging
 from datetime import date, datetime
+# A Pydantic model field literally named `date` and typed `Optional[date]`
+# (or `date`) is a real, reproducible bug, not just a style nit: Pydantic's
+# second-pass annotation resolution can end up using the class's own
+# namespace to resolve the string "date" in the type expression, and by
+# that point the class dict already has `date` bound to the FIELD (whose
+# runtime default is None) rather than the datetime.date type — silently
+# resolving the annotation to NoneType. Confirmed directly:
+# LifeEventModel(date=date(2027,1,1)) raised "Input should be None
+# [type=none_required]", and model_fields['date'].annotation introspected
+# as literally <class 'NoneType'>. Every field below named `date` uses
+# this alias for its TYPE reference specifically to avoid the collision,
+# while keeping the field NAME as `date` (required for YAML/API compat).
+import datetime as _dt
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -195,7 +208,7 @@ class LumpSumPaymentModel(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    date: Optional[date] = None
+    date: Optional[_dt.date] = None
     amount: float = 0.0
     label: str = ""
 
@@ -902,7 +915,7 @@ class LifeEventModel(BaseModel):
     id: str
     name: str
     event_type: EventType = EventType.OTHER
-    date: Optional[date] = None
+    date: Optional[_dt.date] = None
     amount: float = 0.0
     currency: str = "GBP"
     affects_account_id: Optional[str] = None
@@ -1197,7 +1210,7 @@ class CheckpointModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    date: date
+    date: _dt.date
     total_net_worth: float = 0.0
     account_values: dict[str, float] = {}
     notes: str = ""

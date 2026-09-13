@@ -1,6 +1,17 @@
-import { Play, Loader2, Smartphone, Monitor } from 'lucide-react'
+import { Play, Loader2, Smartphone, Monitor, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useConfigStore } from '../../store/configStore'
+import { useSimulationStore } from '../../store/simulationStore'
+import { apiClient } from '../../api/client'
+
+interface ScenarioListItem {
+  name: string
+  path: string
+  display_name?: string
+  is_base?: boolean
+}
 
 interface Props {
   isRunning: boolean
@@ -15,8 +26,26 @@ export function TopBar({
   isRunning, lastRunAt, onRun,
   isMobile = false, isManualOverride = false, onToggleMobileView,
 }: Props) {
-  const { activeScenarioPath, currency } = useConfigStore()
+  const { activeScenarioPath, setActiveScenarioPath, currency } = useConfigStore()
+  const resetSimulation = useSimulationStore(s => s.reset)
   const scenarioName = activeScenarioPath.split('/').pop()?.replace('.yaml', '') ?? 'base'
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const { data: scenarioList = [] } = useQuery<ScenarioListItem[]>({
+    queryKey: ['scenarios-list'],
+    queryFn: () => apiClient.get('/scenarios').then(r => r.data),
+    staleTime: 30_000,
+  })
+
+  function switchScenario(path: string) {
+    if (path === activeScenarioPath) { setPickerOpen(false); return }
+    // The old timeline/Monte Carlo results belong to a DIFFERENT scenario
+    // entirely — showing them under the new one would be actively
+    // misleading (not just stale), so clear rather than just flag stale.
+    resetSimulation()
+    setActiveScenarioPath(path)
+    setPickerOpen(false)
+  }
 
   return (
     <header
@@ -28,17 +57,55 @@ export function TopBar({
         zIndex: 100,
       }}
     >
-      {/* Scenario pill */}
-      <div
-        className="flex items-center gap-2 rounded px-2.5 py-1"
-        style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          fontSize: 11,
-        }}
-      >
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0e9aad' }} />
-        <span style={{ color: '#d4a843', fontWeight: 500 }}>{scenarioName}</span>
+      {/* Scenario pill — click to switch which scenario is active everywhere */}
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setPickerOpen(v => !v)}
+          className="flex items-center gap-2 rounded px-2.5 py-1"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            fontSize: 11, cursor: 'pointer',
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0e9aad' }} />
+          <span style={{ color: '#d4a843', fontWeight: 500 }}>{scenarioName}</span>
+          <ChevronDown size={11} style={{ color: '#8fa3b8' }} />
+        </button>
+        {pickerOpen && (
+          <>
+            <div onClick={() => setPickerOpen(false)}
+                 style={{ position: 'fixed', inset: 0, zIndex: 200 }} />
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, marginTop: 4,
+              background: '#162236', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8, minWidth: 200, zIndex: 201,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)', overflow: 'hidden',
+            }}>
+              {scenarioList.length === 0 && (
+                <div style={{ padding: '10px 14px', fontSize: 11, color: '#8fa3b8' }}>Loading…</div>
+              )}
+              {scenarioList.map(s => (
+                <button
+                  key={s.path}
+                  onClick={() => switchScenario(s.path)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', textAlign: 'left', padding: '8px 14px', fontSize: 12,
+                    background: s.path === activeScenarioPath ? 'rgba(14,154,173,0.12)' : 'transparent',
+                    color: s.path === activeScenarioPath ? '#0e9aad' : '#e8edf2',
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <span>{s.display_name || s.name}</span>
+                  {s.is_base && (
+                    <span style={{ fontSize: 9, color: '#8fa3b8', marginLeft: 8 }}>base</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="w-px h-5" style={{ background: 'rgba(255,255,255,0.07)' }} />
